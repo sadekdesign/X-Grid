@@ -285,11 +285,11 @@ body {
   <!-- Settings dropdown -->
   <div id="settings-panel">
     <div class="settings-row">
-      <span>Show Guides</span>
+      <span title="Shows or hides the X-Grid layer. Ctrl+; still toggles all guides.">Show X-Grid guides</span>
       <button class="toggle-pill on" id="toggle-visibility"></button>
     </div>
     <div class="settings-row">
-      <span>Lock Guides</span>
+      <span title="Locks the X-Grid layer so its guides can't be moved.">Lock X-Grid guides</span>
       <button class="toggle-pill" id="toggle-lock"></button>
     </div>
     <div class="settings-divider"></div>
@@ -304,6 +304,7 @@ body {
     </div>
     <div class="settings-divider"></div>
     <button class="btn-secondary" id="btn-clear-all" style="width:100%;font-size:11px;padding:6px 0">Clear All</button>
+    <div id="settings-msg" style="font-size:10px;color:#888;min-height:12px;margin-top:6px"></div>
   </div>
 </div>
 
@@ -854,8 +855,28 @@ document.querySelectorAll("[data-stepper]").forEach(function(el) {
 var unitMult = 1;
 var unitName = "px";
 
+// Every field read through dim(): its value means a length in the input unit.
+var DIM_IDS = ["col-gutter","col-mt","col-mr","col-mb","col-ml",
+               "mod-gapx","mod-gapy","mod-mt","mod-mr","mod-mb","mod-ml",
+               "base-spacing","base-mt","base-mr","base-mb","base-ml",
+               "comp-mt","comp-mr","comp-mb","comp-ml",
+               "lay-gutter","lay-mt","lay-mr","lay-mb","lay-ml"];
+
+function round3(n) { return String(Math.round(n * 1000) / 1000); }
+
 document.getElementById("unit-select").onchange = function() {
-  unitMult = parseFloat(this.value);
+  // keep the real lengths: 20 px stays 20 px (7.056 mm), it doesn't become 20 mm.
+  // The exact length in pt rides along in data-pt so px → mm → px gives 20 again.
+  var to = parseFloat(this.value), from = unitMult;
+  DIM_IDS.forEach(function(id) {
+    var el = document.getElementById(id), n = el && parseFloat(el.value);
+    if (!el || isNaN(n)) return;
+    var pt = parseFloat(el.dataset.pt);
+    if (isNaN(pt) || round3(pt / from) !== round3(n)) pt = n * from;
+    el.dataset.pt = pt;
+    el.value = round3(pt / to);
+  });
+  unitMult = to;
   unitName = this.options[this.selectedIndex].text;
   document.querySelectorAll(".unit-tag").forEach(function(el) { el.textContent = unitName; });
 };
@@ -867,13 +888,28 @@ function cnt(id) {
   return document.getElementById(id).value || "0";
 }
 
+// ── Guide Show / Lock (state lives on the X-Grid layer, read back each time) ──
+function applyDocState(vis, locked) {
+  document.getElementById("toggle-visibility").className = vis    ? "toggle-pill on" : "toggle-pill";
+  document.getElementById("toggle-lock").className       = locked ? "toggle-pill on" : "toggle-pill";
+  document.getElementById("eye-icon").style.opacity = vis ? "1" : "0.35";
+}
+function onDocState(r) {
+  abKey = ""; // the next poll must re-apply whatever Illustrator says now
+  if (r.indexOf("ok:") !== 0) { flashSettingsMsg(r.replace("error:", "")); return; }
+  var p = r.slice(3).split("|");
+  applyDocState(p[0] === "1", p[1] === "1");
+}
+function flashSettingsMsg(msg) {
+  var el = document.getElementById("settings-msg");
+  el.textContent = msg;
+  clearTimeout(flashSettingsMsg.t);
+  flashSettingsMsg.t = setTimeout(function() { el.textContent = ""; }, 3000);
+}
+
 // ── Header: Eye button ────────────────────────────────────────────────────────
 document.getElementById("btn-visibility").onclick = function() {
-  cs.evalScript("toggleGuideVisibility()", function(r) {
-    var visible = r === "ok:shown";
-    document.getElementById("toggle-visibility").className = visible ? "toggle-pill on" : "toggle-pill";
-    document.getElementById("eye-icon").style.opacity = visible ? "1" : "0.35";
-  });
+  cs.evalScript("toggleGuideVisibility()", onDocState);
 };
 
 // ── Header: Settings button ───────────────────────────────────────────────────
@@ -882,17 +918,7 @@ document.getElementById("btn-settings").onclick = function(e) {
   var p = document.getElementById("settings-panel");
   var open = p.style.display === "block";
   p.style.display = open ? "none" : "block";
-  if (!open) {
-    cs.evalScript("getDocState()", function(r) {
-      if (r.indexOf("ok:") !== 0) return;
-      var parts = r.replace("ok:","").split("|");
-      var vis    = parts[0] === "1";
-      var locked = parts[1] === "1";
-      document.getElementById("toggle-visibility").className = vis    ? "toggle-pill on" : "toggle-pill";
-      document.getElementById("toggle-lock").className       = locked ? "toggle-pill on" : "toggle-pill";
-      document.getElementById("eye-icon").style.opacity = vis ? "1" : "0.35";
-    });
-  }
+  if (!open) cs.evalScript("getDocState()", onDocState);
 };
 document.addEventListener("click", function() {
   document.getElementById("settings-panel").style.display = "none";
@@ -902,23 +928,26 @@ document.getElementById("settings-panel").addEventListener("click", function(e) 
 });
 
 document.getElementById("toggle-visibility").onclick = function() {
-  cs.evalScript("toggleGuideVisibility()", function(r) {
-    var visible = r === "ok:shown";
-    document.getElementById("toggle-visibility").className = visible ? "toggle-pill on" : "toggle-pill";
-    document.getElementById("eye-icon").style.opacity = visible ? "1" : "0.35";
-  });
+  cs.evalScript("toggleGuideVisibility()", onDocState);
 };
 
 document.getElementById("toggle-lock").onclick = function() {
-  var locked = this.className.indexOf("on") === -1;
-  cs.evalScript('setGuideLock("' + (locked ? "1" : "0") + '")', function() {
-    document.getElementById("toggle-lock").className = locked ? "toggle-pill on" : "toggle-pill";
-  });
+  var want = this.className.indexOf("on") === -1;
+  cs.evalScript('setGuideLock("' + (want ? "1" : "0") + '")', onDocState);
 };
 
+// Two clicks: it removes every X-Grid guide and layer in the document.
 document.getElementById("btn-clear-all").onclick = function() {
+  var btn = this;
+  if (!btn.armed) {
+    btn.armed = true; btn.textContent = "Click again to clear all X-Grid guides";
+    btn.disarm = setTimeout(function() { btn.armed = false; btn.textContent = "Clear All"; }, 3000);
+    return;
+  }
+  clearTimeout(btn.disarm); btn.armed = false; btn.textContent = "Clear All";
   cs.evalScript("clearAllCustomLayers()", function(r) {
-    document.getElementById("settings-panel").style.display = "none";
+    flashSettingsMsg(r.replace(/^(ok|error):/, ""));
+    cs.evalScript("getDocState()", onDocState);
   });
 };
 
@@ -934,12 +963,17 @@ document.querySelectorAll(".tab:not(.disabled)").forEach(function(tab) {
 });
 
 // ── Linked Margins ────────────────────────────────────────────────────────────
+// Linking starts on only when the four margins are already equal, so loading
+// saved settings never lets one edit overwrite three different margins.
+var marginLinks = [];
 function makeLinkedMargins(linkId, ids) {
-  var linked = true;
-  document.getElementById(linkId).onclick = function() {
-    linked = !linked;
-    this.className = linked ? "link-btn linked" : "link-btn";
-  };
+  var linked = true, btn = document.getElementById(linkId);
+  function set(v) { linked = v; btn.className = linked ? "link-btn linked" : "link-btn"; }
+  marginLinks.push(function() {
+    var v0 = document.getElementById(ids[0]).value;
+    set(ids.every(function(id) { return document.getElementById(id).value === v0; }));
+  });
+  btn.onclick = function() { set(!linked); };
   ids.forEach(function(id) {
     document.getElementById(id).addEventListener("input", function() {
       if (linked) ids.forEach(function(mid) {
@@ -1010,7 +1044,17 @@ function loadSettings() {
     var ct = document.getElementById("comp-type");
     if (ct) document.getElementById("comp-info").textContent = compInfoMap[ct.value] || "";
   } catch(e) {}
+  marginLinks.forEach(function(sync) { sync(); });
 }
+
+// Save as you edit (debounced), not only on Generate.
+var saveTimer = null;
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(saveSettings, 300); }
+ALL_IDS.forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) { el.addEventListener("input", saveSoon); el.addEventListener("change", saveSoon); }
+});
+document.querySelectorAll("[data-stepper] button").forEach(function(b) { b.addEventListener("click", saveSoon); });
 
 document.getElementById("unit-select").addEventListener("change", function() {
   saveSettings();
@@ -1056,6 +1100,7 @@ function renderAbTarget(info) {
     return;
   }
   sel.disabled = false;
+  applyDocState(info.vis === 1, info.lock === 1);
   var act = info.abs[info.active];
   sel.options[0].text = "Active — " + (info.active + 1) + ". " + act.n;
   sel.options[1].text = "All artboards (" + info.abs.length + ")";

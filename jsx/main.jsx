@@ -1,31 +1,37 @@
 // ─── Document State ──────────────────────────────────────────────────────────
-// Note: Illustrator has no doc.guidesVisible / doc.guidesLocked DOM properties.
-// Visibility is toggled via menu command (state tracked in a JSX global).
-// Lock state IS readable via pathItem.locked on guide items.
+// Illustrator's own Show/Lock Guides state can't be read from scripts (the
+// menu commands only toggle, and the preferences answer true for any key), so
+// Show and Lock act on the X-Grid layer: real, per document, and readable.
 
-var _gg_guidesVisible = true; // tracks visibility state across calls
-var _gg_guidesLocked  = false; // tracks lock state across calls
+function setGuideVisibility(val) {
+    if (app.documents.length === 0) return "error:No document open.";
+    var root = xgRootLayer(app.activeDocument, false);
+    if (!root) return "error:No X-Grid guides in this document yet.";
+    root.visible = (val === "1");
+    return getDocState();
+}
 
 function toggleGuideVisibility() {
     if (app.documents.length === 0) return "error:No document open.";
-    app.executeMenuCommand("showguide"); // View > Guides > Show/Hide Guides (Ctrl+;)
-    _gg_guidesVisible = !_gg_guidesVisible;
-    return _gg_guidesVisible ? "ok:shown" : "ok:hidden";
+    var root = xgRootLayer(app.activeDocument, false);
+    if (!root) return "error:No X-Grid guides in this document yet.";
+    return setGuideVisibility(root.visible ? "0" : "1");
 }
 
 function setGuideLock(val) {
     if (app.documents.length === 0) return "error:No document open.";
-    var wantLocked = (val === "1");
-    if (_gg_guidesLocked !== wantLocked) {
-        app.executeMenuCommand("lockguide"); // View > Guides > Lock Guides (Alt+Ctrl+;)
-        _gg_guidesLocked = wantLocked;
-    }
-    return wantLocked ? "ok:locked" : "ok:unlocked";
+    var root = xgRootLayer(app.activeDocument, false);
+    if (!root) return "error:No X-Grid guides in this document yet.";
+    root.locked = (val === "1");
+    return getDocState();
 }
 
+// "ok:<visible>|<locked>|<has X-Grid layer>"
 function getDocState() {
     if (app.documents.length === 0) return "error:No document open.";
-    return "ok:" + (_gg_guidesVisible ? "1" : "0") + "|" + (_gg_guidesLocked ? "1" : "0");
+    var root = xgRootLayer(app.activeDocument, false);
+    if (!root) return "ok:1|0|0";
+    return "ok:" + (root.visible ? "1" : "0") + "|" + (root.locked ? "1" : "0") + "|1";
 }
 
 function getArtboardSize(idx) {
@@ -375,8 +381,11 @@ function getArtboardInfo() {
         var n = String(ab.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\x00-\x1f]/g, " ");
         out.push('{"n":"' + n + '","w":' + xgRound(r[2] - r[0]) + ',"h":' + xgRound(r[1] - r[3]) + '}');
     }
+    var st = getDocState().slice(3).split("|");
     return 'ok:{"doc":"' + String(doc.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"') +
-           '","active":' + doc.artboards.getActiveArtboardIndex() + ',"abs":[' + out.join(",") + ']}';
+           '","active":' + doc.artboards.getActiveArtboardIndex() +
+           ',"vis":' + st[0] + ',"lock":' + st[1] + ',"has":' + st[2] +
+           ',"abs":[' + out.join(",") + ']}';
 }
 
 function getArtboardNames() {
