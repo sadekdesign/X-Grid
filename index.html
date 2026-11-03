@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Grid Guides</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: #232323; color: #d0d0d0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px; user-select: none;
+  display: flex; flex-direction: column;
+}
+
+/* ── Header ── */
+.header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: #1c1c1c;
+  border-bottom: 1px solid #111; flex-shrink: 0;
+}
+.logo-mark { width: 18px; height: 18px; background: #255ab0; border-radius: 3px; flex-shrink: 0; }
+.logo-name  { font-size: 13px; font-weight: 700; color: #fff; flex: 1; }
+.header-icons { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  background: none; border: none; color: #888; cursor: pointer;
+  padding: 3px; border-radius: 3px; display: flex; align-items: center;
+  justify-content: center; transition: color .15s;
+}
+.icon-btn:hover { color: #ccc; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; background: #1c1c1c;
+  border-bottom: 1px solid #111; padding: 0 6px;
+  gap: 1px; flex-shrink: 0; overflow-x: auto;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 8px 9px; font-size: 11px; color: #888; cursor: pointer; white-space: nowrap;
+  border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+}
+.tab:hover { color: #ccc; }
+.tab.active { color: #fff; border-bottom-color: #255ab0; }
+.tab.disabled { color: #444; cursor: default; pointer-events: none; }
+
+/* ── Tab Panels ── */
+.tab-panel { display: none; }
+.tab-panel.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* ── Panel Body ── */
+.panel-body {
+  padding: 12px; display: flex; flex-direction: column;
+  gap: 12px; flex: 1; overflow-y: auto; overflow-x: hidden;
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 2px; }
+
+/* ── Bottom pinned ── */
+.bottom-area {
+  padding: 10px 12px; display: flex; flex-direction: column;
+  gap: 6px; border-top: 1px solid #2a2a2a; flex-shrink: 0;
+}
+
+/* ── Artboard Row ── */
+.artboard-row { display: flex; align-items: center; gap: 6px; }
+.artboard-row select {
+  flex: 1; background: #2e2e2e; border: 1px solid #3a3a3a;
+  color: #d0d0d0; border-radius: 4px; padding: 5px 8px; font-size: 12px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+}
+.artboard-row select:focus { outline: none; border-color: #255ab0; }
+
+/* ── Section Label ── */
+.section-label {
+  font-size: 10px; font-weight: 600; color: #666;
+  letter-spacing: .8px; text-transform: uppercase; margin-bottom: 4px;
+}
+
+/* ── Stepper (full) ── */
+.stepper {
+  display: flex; align-items: center;
+  background: #2e2e2e; border: 1px solid #3a3a3a;
+  border-radius: 4px; overflow: hidden; height: 30px;
+}
+.stepper button {
+  background: none; border: none; color: #888; width: 28px;
+  height: 100%; cursor: pointer; font-size: 16px;
+  transition: background .1s, color .1s; flex-shrink: 0;
+}
+.stepper button:hover { background: #3a3a3a; color: #fff; }
+.stepper input {
+  flex: 1; background: none; border: none; color: #fff;
+  text-align: center; font-size: 13px; font-weight: 600; min-width: 0;
+}
+.stepper input:focus { outline: none; }
+
+/* ── Stepper (mini — for margins) ── */
+.stepper-sm {
+  display: flex; align-items: center;
+  background: #2e2e2e; border: 1px solid #3a3a3a;
+  border-radius: 4px; overflow: hidden; height: 28px;
+}
+.stepper-sm button {
+  background: none; border: none; color: #777; width: 18px;
+  height: 100%; cursor: pointer; font-size: 13px;
+  transition: background .1s, color .1s; flex-shrink: 0;
+}
+.stepper-sm button:hover { background: #3a3a3a; color: #fff; }
+.stepper-sm input {
+  flex: 1; background: none; border: none; color: #fff;
+  text-align: center; font-size: 11px; font-weight: 600; min-width: 0;
+}
+.stepper-sm input:focus { outline: none; }
+
+/* ── Two-col row ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── Gap link button ── */
+.gap-link-btn {
+  background: none; border: 1px solid #3a3a3a; border-radius: 4px;
+  color: #888; cursor: pointer; padding: 0 6px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.gap-link-btn.linked { border-color: #255ab0; color: #255ab0; }
+
+/* ── Margins ── */
+.margins-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.link-btn {
+  background: none; border: 1px solid #3a3a3a; border-radius: 3px;
+  color: #888; cursor: pointer; padding: 3px 6px; font-size: 10px; transition: all .15s;
+}
+.link-btn.linked { border-color: #255ab0; color: #255ab0; }
+.margins-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; }
+.margin-field label { display: block; font-size: 10px; color: #666; margin-bottom: 3px; }
+
+/* ── Artboard size ── */
+.ab-size { font-size: 10px; color: #484848; text-align: right; margin-top: -8px; height: 12px; }
+
+/* ── Preset buttons ── */
+.presets { display: flex; gap: 5px; flex-wrap: wrap; }
+.preset-btn {
+  flex: 1; min-width: 0; background: #2e2e2e; border: 1px solid #3a3a3a;
+  border-radius: 4px; color: #aaa; font-size: 11px; font-weight: 600;
+  padding: 5px 0; cursor: pointer; transition: all .15s; text-align: center;
+}
+.preset-btn:hover { background: #3a3a3a; color: #fff; border-color: #555; }
+
+/* ── Select (direction) ── */
+.field-select {
+  width: 100%; background: #2e2e2e; border: 1px solid #3a3a3a;
+  color: #d0d0d0; border-radius: 4px; padding: 5px 8px; font-size: 12px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+}
+.field-select:focus { outline: none; border-color: #255ab0; }
+
+/* ── Buttons ── */
+.btn-row { display: flex; gap: 8px; }
+.btn-primary {
+  flex: 1; background: linear-gradient(135deg,#255ab0,#1a3f80);
+  border: none; border-radius: 5px; color: #fff;
+  font-size: 12px; font-weight: 600; padding: 9px 0;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-primary:hover { opacity: .85; }
+.btn-primary:active { opacity: .65; }
+.btn-secondary {
+  padding: 9px 16px; background: #2e2e2e; border: 1px solid #3a3a3a;
+  border-radius: 5px; color: #aaa; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.btn-secondary:hover { background: #3a3a3a; color: #fff; }
+
+/* ── Settings dropdown ── */
+.header { position: relative; }
+#settings-panel {
+  display: none; position: absolute; right: 10px; top: 38px;
+  background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 6px;
+  padding: 10px 12px; z-index: 999; min-width: 170px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+}
+#settings-panel .settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; font-size: 11px; color: #aaa;
+}
+#settings-panel .settings-divider { border-top: 1px solid #3a3a3a; margin: 6px 0; }
+.toggle-pill {
+  position: relative; width: 30px; height: 16px;
+  background: #444; border: none; border-radius: 8px; cursor: pointer;
+  transition: background .2s; flex-shrink: 0;
+}
+.toggle-pill::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%; background: #888;
+  transition: left .2s, background .2s;
+}
+.toggle-pill.on { background: #255ab0; }
+.toggle-pill.on::after { left: 16px; background: #fff; }
+
+/* ── Status ── */
+.status { font-size: 11px; text-align: center; min-height: 14px; color: #5cb85c; }
+.status.error { color: #e06c5c; }
+
+/* ── Preset Row ── */
+.preset-row { display: flex; align-items: center; gap: 6px; }
+.preset-select {
+  flex: 1; background: #2e2e2e; border: 1px solid #3a3a3a;
+  color: #d0d0d0; border-radius: 4px; padding: 5px 8px; font-size: 11px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
+}
+.preset-select:focus { outline: none; border-color: #255ab0; }
+
+/* ── Plugin power toggle ── */
+.plugin-power {
+  width: 30px; height: 16px; background: #255ab0;
+  border: none; border-radius: 8px; cursor: pointer;
+  position: relative; transition: background .2s; flex-shrink: 0;
+}
+.plugin-power::after {
+  content: ""; position: absolute; top: 2px; right: 2px;
+  width: 12px; height: 12px; border-radius: 50%; background: #fff;
+  transition: right .2s, background .2s;
+}
+.plugin-power.off { background: #3a3a3a; }
+.plugin-power.off::after { right: 16px; background: #666; }
+
+/* ── Disabled state ── */
+.panel-disabled { opacity: .3; pointer-events: none; }
+
+/* ── Live Preview ── */
+.preview-area {
+  background: #191919; border: 1px solid #252525; border-radius: 6px;
+  overflow: hidden; position: relative; flex-shrink: 0;
+}
+.preview-svg { display: block; width: 100%; height: 88px; }
+.preview-label {
+  position: absolute; top: 4px; left: 6px;
+  font-size: 9px; color: #353535; letter-spacing: .5px; text-transform: uppercase;
+  pointer-events: none;
+}
+.preview-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; color: #555;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-mark"></div>
+  <span class="logo-name">Grid Guides</span>
+  <button class="plugin-power" id="plugin-power" title="Enable / disable plugin"></button>
+  <div class="header-icons">
+    <button class="icon-btn" id="btn-visibility" title="Toggle guide visibility">
+      <svg id="eye-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="btn-settings" title="Settings">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Settings dropdown -->
+  <div id="settings-panel">
+    <div class="settings-row">
+      <span>Show Guides</span>
+      <button class="toggle-pill on" id="toggle-visibility"></button>
+    </div>
+    <div class="settings-row">
+      <span>Lock Guides</span>
+      <button class="toggle-pill" id="toggle-lock"></button>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-row">
+      <span>Input Unit</span>
+      <select id="unit-select" style="background:#3a3a3a;border:1px solid #555;color:#d0d0d0;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer">
+        <option value="1"       selected>px / pt</option>
+        <option value="2.8346" >mm</option>
+        <option value="28.346" >cm</option>
+        <option value="72"     >in</option>
+      </select>
+    </div>
+    <div class="settings-divider"></div>
+    <button class="btn-secondary" id="btn-clear-all" style="width:100%;font-size:11px;padding:6px 0">Clear All</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" data-tab="columns">Columns</div>
+  <div class="tab" data-tab="modular">Modular</div>
+  <div class="tab" data-tab="baseline">Baseline</div>
+  <div class="tab" data-tab="layout">Layout</div>
+  <div class="tab" data-tab="comp">Comp</div>
+</div>
+
+<!-- ═══ COLUMNS TAB ═══ -->
+<div class="tab-panel active" id="panel-columns">
+  <div class="panel-body">
+
+    <div class="artboard-row">
+      <select id="col-artboard"><option value="-1">All Artboards</option></select>
+      <button class="icon-btn" id="col-refresh" title="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ab-size" id="col-ab-size"></div>
+
+    <div>
+      <div class="section-label">Preset</div>
+      <div class="preset-row">
+        <select class="preset-select" id="col-preset-sel">
+          <option value="">— select —</option>
+          <option value="bootstrap" data-cols="12" data-gutter="30" data-ml="72" data-mr="72">Bootstrap 12</option>
+          <option value="material"  data-cols="12" data-gutter="16" data-ml="16" data-mr="16">Material 12</option>
+          <option value="8col"      data-cols="8"  data-gutter="20" data-ml="40" data-mr="40">8-Col</option>
+          <option value="4col"      data-cols="4"  data-gutter="16" data-ml="24" data-mr="24">4-Col</option>
+        </select>
+        <button class="icon-btn" id="col-preset-save" title="Save current as preset">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Columns</div>
+      <div class="stepper" data-stepper data-id="col-val" data-min="1">
+        <button>−</button><input id="col-val" type="number" value="12"/><button>+</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Gutter X <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
+      <div class="stepper" data-stepper data-id="col-gutter" data-min="0">
+        <button>−</button><input id="col-gutter" type="number" value="20"/><button>+</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Margins</span>
+        <button class="link-btn linked" id="col-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="margins-grid">
+        <div class="margin-field"><label>Top</label>
+          <div class="stepper-sm" data-stepper data-id="col-mt" data-min="0"><button>−</button><input id="col-mt" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Right</label>
+          <div class="stepper-sm" data-stepper data-id="col-mr" data-min="0"><button>−</button><input id="col-mr" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Bottom</label>
+          <div class="stepper-sm" data-stepper data-id="col-mb" data-min="0"><button>−</button><input id="col-mb" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Left</label>
+          <div class="stepper-sm" data-stepper data-id="col-ml" data-min="0"><button>−</button><input id="col-ml" type="number" value="24"/><button>+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-area" id="col-preview-wrap">
+      <span class="preview-label">Preview</span>
+      <svg id="col-preview-svg" class="preview-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+  </div>
+  <div class="bottom-area">
+    <div class="preview-toggle-row">
+      <span>Live Preview</span>
+      <button class="toggle-pill on" id="col-preview-toggle"></button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="col-generate">Generate Grid</button>
+      <button class="btn-secondary" id="col-clear">Clear</button>
+    </div>
+    <span class="status" id="col-status"></span>
+  </div>
+</div>
+
+<!-- ═══ MODULAR TAB ═══ -->
+<div class="tab-panel" id="panel-modular">
+  <div class="panel-body">
+
+    <div class="artboard-row">
+      <select id="mod-artboard"><option value="-1">All Artboards</option></select>
+      <button class="icon-btn" id="mod-refresh" title="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ab-size" id="mod-ab-size"></div>
+
+    <div>
+      <div class="section-label">Preset</div>
+      <div class="preset-row">
+        <select class="preset-select" id="mod-preset-sel">
+          <option value="">— select —</option>
+          <option value="6x4" data-cols="6" data-rows="4" data-gapx="16" data-gapy="16">6 × 4</option>
+          <option value="8x6" data-cols="8" data-rows="6" data-gapx="16" data-gapy="16">8 × 6</option>
+          <option value="4x4" data-cols="4" data-rows="4" data-gapx="24" data-gapy="24">4 × 4</option>
+          <option value="3x3" data-cols="3" data-rows="3" data-gapx="16" data-gapy="16">3 × 3</option>
+        </select>
+        <button class="icon-btn" id="mod-preset-save" title="Save current as preset">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Cols</div>
+        <div class="stepper" data-stepper data-id="mod-cols-val" data-min="1">
+          <button>−</button><input id="mod-cols-val" type="number" value="6"/><button>+</button>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Rows</div>
+        <div class="stepper" data-stepper data-id="mod-rows-val" data-min="1">
+          <button>−</button><input id="mod-rows-val" type="number" value="4"/><button>+</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Gap</span>
+        <button class="gap-link-btn linked" id="mod-gap-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="two-col">
+        <div>
+          <div class="section-label">Gap X <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
+          <div class="stepper" data-stepper data-id="mod-gapx" data-min="0">
+            <button>−</button><input id="mod-gapx" type="number" value="16"/><button>+</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Gap Y <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
+          <div class="stepper" data-stepper data-id="mod-gapy" data-min="0">
+            <button>−</button><input id="mod-gapy" type="number" value="16"/><button>+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Margins</span>
+        <button class="link-btn linked" id="mod-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="margins-grid">
+        <div class="margin-field"><label>Top</label>
+          <div class="stepper-sm" data-stepper data-id="mod-mt" data-min="0"><button>−</button><input id="mod-mt" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Right</label>
+          <div class="stepper-sm" data-stepper data-id="mod-mr" data-min="0"><button>−</button><input id="mod-mr" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Bottom</label>
+          <div class="stepper-sm" data-stepper data-id="mod-mb" data-min="0"><button>−</button><input id="mod-mb" type="number" value="24"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Left</label>
+          <div class="stepper-sm" data-stepper data-id="mod-ml" data-min="0"><button>−</button><input id="mod-ml" type="number" value="24"/><button>+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-area" id="mod-preview-wrap">
+      <span class="preview-label">Preview</span>
+      <svg id="mod-preview-svg" class="preview-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+  </div>
+  <div class="bottom-area">
+    <div class="preview-toggle-row">
+      <span>Live Preview</span>
+      <button class="toggle-pill on" id="mod-preview-toggle"></button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="mod-generate">Generate Grid</button>
+      <button class="btn-secondary" id="mod-clear">Clear</button>
+    </div>
+    <span class="status" id="mod-status"></span>
+  </div>
+</div>
+
+<!-- ═══ BASELINE TAB ═══ -->
+<div class="tab-panel" id="panel-baseline">
+  <div class="panel-body">
+
+    <div class="artboard-row">
+      <select id="base-artboard"><option value="-1">All Artboards</option></select>
+      <button class="icon-btn" id="base-refresh" title="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ab-size" id="base-ab-size"></div>
+
+    <div>
+      <div class="section-label">Preset</div>
+      <div class="preset-row">
+        <select class="preset-select" id="base-preset-sel">
+          <option value="">— select —</option>
+          <option value="4pt"  data-spacing="4">4pt</option>
+          <option value="8pt"  data-spacing="8">8pt</option>
+          <option value="10pt" data-spacing="10">10pt</option>
+          <option value="12pt" data-spacing="12">12pt</option>
+          <option value="16pt" data-spacing="16">16pt</option>
+          <option value="24pt" data-spacing="24">24pt</option>
+        </select>
+        <button class="icon-btn" id="base-preset-save" title="Save current as preset">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Direction</div>
+      <select id="base-direction" class="field-select">
+        <option value="horizontal">Horizontal lines</option>
+        <option value="vertical">Vertical lines</option>
+        <option value="both">Both</option>
+      </select>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="section-label">Spacing <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
+        <div class="stepper" data-stepper data-id="base-spacing" data-min="1">
+          <button>−</button><input id="base-spacing" type="number" value="8"/><button>+</button>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Bold Every</div>
+        <div class="stepper" data-stepper data-id="base-bold-val" data-min="0">
+          <button>−</button><input id="base-bold-val" type="number" value="4"/><button>+</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Margins</span>
+        <button class="link-btn linked" id="base-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="margins-grid">
+        <div class="margin-field"><label>Top</label>
+          <div class="stepper-sm" data-stepper data-id="base-mt" data-min="0"><button>−</button><input id="base-mt" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Right</label>
+          <div class="stepper-sm" data-stepper data-id="base-mr" data-min="0"><button>−</button><input id="base-mr" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Bottom</label>
+          <div class="stepper-sm" data-stepper data-id="base-mb" data-min="0"><button>−</button><input id="base-mb" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Left</label>
+          <div class="stepper-sm" data-stepper data-id="base-ml" data-min="0"><button>−</button><input id="base-ml" type="number" value="0"/><button>+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-area" id="base-preview-wrap">
+      <span class="preview-label">Preview</span>
+      <svg id="base-preview-svg" class="preview-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+  </div>
+  <div class="bottom-area">
+    <div class="preview-toggle-row">
+      <span>Live Preview</span>
+      <button class="toggle-pill on" id="base-preview-toggle"></button>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="base-generate">Generate Grid</button>
+      <button class="btn-secondary" id="base-clear">Clear</button>
+    </div>
+    <span class="status" id="base-status"></span>
+  </div>
+</div>
+
+<!-- ═══ LAYOUT TAB ═══ -->
+<div class="tab-panel" id="panel-layout">
+  <div class="panel-body">
+
+    <div class="artboard-row">
+      <select id="lay-artboard"><option value="-1">All Artboards</option></select>
+      <button class="icon-btn" id="lay-refresh" title="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ab-size" id="lay-ab-size"></div>
+
+    <div>
+      <div class="section-label">Grid Type</div>
+      <select id="lay-type" class="field-select">
+        <optgroup label="Layout">
+          <option value="manuscript">Manuscript Grid</option>
+          <option value="hierarchical">Hierarchical Grid</option>
+          <option value="compound">Compound Grid</option>
+        </optgroup>
+        <optgroup label="Spacing">
+          <option value="spacing8">8pt Grid</option>
+          <option value="spacing4">4pt Grid</option>
+          <option value="spacingpx">Pixel Grid</option>
+          <option value="responsive">Responsive Grid</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div id="lay-info" style="background:#1c1c1c;border-radius:4px;padding:8px 10px;font-size:11px;color:#666;line-height:1.5;">
+      Single-column text block framed by generous margins — the foundation of book typography.
+    </div>
+
+    <div id="lay-zones-row" style="display:none">
+      <div class="section-label">Zones</div>
+      <div class="stepper" data-stepper data-id="lay-zones" data-min="2">
+        <button>−</button><input id="lay-zones" type="number" value="3"/><button>+</button>
+      </div>
+    </div>
+
+    <div id="lay-compound-row" style="display:none">
+      <div class="two-col">
+        <div>
+          <div class="section-label">Group 1 Cols</div>
+          <div class="stepper" data-stepper data-id="lay-cols1" data-min="1">
+            <button>−</button><input id="lay-cols1" type="number" value="3"/><button>+</button>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">Group 2 Cols</div>
+          <div class="stepper" data-stepper data-id="lay-cols2" data-min="1">
+            <button>−</button><input id="lay-cols2" type="number" value="2"/><button>+</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div class="section-label">Gutter <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
+        <div class="stepper" data-stepper data-id="lay-gutter" data-min="0">
+          <button>−</button><input id="lay-gutter" type="number" value="16"/><button>+</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lay-margins-row">
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Margins</span>
+        <button class="link-btn linked" id="lay-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="margins-grid">
+        <div class="margin-field"><label>Top</label>
+          <div class="stepper-sm" data-stepper data-id="lay-mt" data-min="0"><button>−</button><input id="lay-mt" type="number" value="72"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Right</label>
+          <div class="stepper-sm" data-stepper data-id="lay-mr" data-min="0"><button>−</button><input id="lay-mr" type="number" value="72"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Bottom</label>
+          <div class="stepper-sm" data-stepper data-id="lay-mb" data-min="0"><button>−</button><input id="lay-mb" type="number" value="72"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Left</label>
+          <div class="stepper-sm" data-stepper data-id="lay-ml" data-min="0"><button>−</button><input id="lay-ml" type="number" value="72"/><button>+</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="bottom-area">
+    <div class="btn-row">
+      <button class="btn-primary" id="lay-generate">Generate Grid</button>
+      <button class="btn-secondary" id="lay-clear">Clear</button>
+    </div>
+    <span class="status" id="lay-status"></span>
+  </div>
+</div>
+
+<!-- ═══ COMP TAB ═══ -->
+<div class="tab-panel" id="panel-comp">
+  <div class="panel-body">
+
+    <div class="artboard-row">
+      <select id="comp-artboard"><option value="-1">All Artboards</option></select>
+      <button class="icon-btn" id="comp-refresh" title="Refresh">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </div>
+    <div class="ab-size" id="comp-ab-size"></div>
+
+    <div>
+      <div class="section-label">Grid Type</div>
+      <select id="comp-type" class="field-select">
+        <optgroup label="Classic">
+          <option value="thirds">Rule of Thirds</option>
+          <option value="phi">Phi Grid (Golden Ratio)</option>
+          <option value="spiral">Golden Spiral</option>
+          <option value="quadrants">Quadrants</option>
+          <option value="center">Center Cross</option>
+          <option value="fibonacci">Fibonacci Sections</option>
+          <option value="triangle">Triangle Composition</option>
+        </optgroup>
+        <optgroup label="Dynamic Symmetry">
+          <option value="harmonic">Harmonic Armature</option>
+          <option value="baroque">Baroque Diagonal</option>
+          <option value="sinister">Sinister Diagonal</option>
+          <option value="14line">14-Line Armature</option>
+        </optgroup>
+        <optgroup label="Root Rectangles">
+          <option value="roottwo">Root-2 Rectangle</option>
+          <option value="root3">Root-3 Rectangle</option>
+          <option value="root4">Root-4 Rectangle</option>
+          <option value="root5">Root-5 Rectangle</option>
+        </optgroup>
+        <optgroup label="Geometric">
+          <option value="rabatment">Rabatment</option>
+          <option value="diagonal">Diagonal Cross</option>
+          <option value="radial">Radial Grid</option>
+          <option value="isometric">Isometric Grid</option>
+        </optgroup>
+        <optgroup label="Historical">
+          <option value="vandegraaf">Van de Graaf Canon</option>
+          <option value="villard">Villard Diagram</option>
+          <option value="tschichold">Tschichold Canon</option>
+          <option value="modulor">Le Corbusier Modulor</option>
+        </optgroup>
+        <optgroup label="Letter-Shape">
+          <option value="steelyard">Steelyard</option>
+          <option value="ocircle">O / Circle</option>
+          <option value="lshape">L-Shape</option>
+          <option value="ushape">U-Shape</option>
+          <option value="cshape">C-Shape</option>
+          <option value="tshape">T-Shape</option>
+          <option value="tunnel">Tunnel</option>
+          <option value="scurve">S-Curve</option>
+          <option value="zpattern">Z-Pattern</option>
+          <option value="fpattern">F-Pattern</option>
+        </optgroup>
+        <optgroup label="Geometric Patterns">
+          <option value="vesica">Vesica Piscis</option>
+          <option value="flower">Flower of Life</option>
+        </optgroup>
+        <optgroup label="Perspective">
+          <option value="1point">1-Point Perspective</option>
+          <option value="2point">2-Point Perspective</option>
+          <option value="3point">3-Point Perspective</option>
+        </optgroup>
+        <optgroup label="Typographic">
+          <option value="axial">Axial System</option>
+          <option value="dilatational">Dilatational</option>
+        </optgroup>
+        <optgroup label="Cinematic">
+          <option value="safearea">Safe Areas</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div id="comp-spacing-row" style="display:none">
+      <div class="section-label">Spacing</div>
+      <div class="stepper" data-stepper data-id="comp-spacing" data-min="4">
+        <button>−</button><input id="comp-spacing" type="number" value="20"/><button>+</button>
+      </div>
+      <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="comp-iso-h" style="accent-color:#255ab0"/>
+        <label for="comp-iso-h" style="font-size:11px;color:#888;cursor:pointer">Include horizontal lines</label>
+      </div>
+    </div>
+
+    <div id="comp-count-row" style="display:none">
+      <div class="section-label">Lines</div>
+      <div class="stepper" data-stepper data-id="comp-count" data-min="2">
+        <button>−</button><input id="comp-count" type="number" value="12"/><button>+</button>
+      </div>
+    </div>
+
+    <div id="comp-margins-row">
+      <div class="margins-header">
+        <span class="section-label" style="margin:0">Margins</span>
+        <button class="link-btn linked" id="comp-link">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+        </button>
+      </div>
+      <div class="margins-grid">
+        <div class="margin-field"><label>Top</label>
+          <div class="stepper-sm" data-stepper data-id="comp-mt" data-min="0"><button>−</button><input id="comp-mt" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Right</label>
+          <div class="stepper-sm" data-stepper data-id="comp-mr" data-min="0"><button>−</button><input id="comp-mr" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Bottom</label>
+          <div class="stepper-sm" data-stepper data-id="comp-mb" data-min="0"><button>−</button><input id="comp-mb" type="number" value="0"/><button>+</button></div>
+        </div>
+        <div class="margin-field"><label>Left</label>
+          <div class="stepper-sm" data-stepper data-id="comp-ml" data-min="0"><button>−</button><input id="comp-ml" type="number" value="0"/><button>+</button></div>
+        </div>
+      </div>
+    </div><!-- /comp-margins-row -->
+
+    <div id="comp-info" style="background:#1c1c1c;border-radius:4px;padding:8px 10px;font-size:11px;color:#666;line-height:1.5;">
+      Divides the canvas into thirds horizontally and vertically — classic composition rule.
+    </div>
+
+  </div>
+  <div class="bottom-area">
+    <div class="btn-row">
+      <button class="btn-primary" id="comp-generate">Generate Grid</button>
+      <button class="btn-secondary" id="comp-clear">Clear</button>
+    </div>
+    <span class="status" id="comp-status"></span>
+  </div>
+</div>
+
+<script src="js/libs/CSInterface.js"></script>
+<script>
+var cs = new CSInterface();
+
+// ── Auto-init all steppers via data-stepper ───────────────────────────────────
+document.querySelectorAll("[data-stepper]").forEach(function(el) {
+  var inputId = el.getAttribute("data-id");
+  var min     = parseFloat(el.getAttribute("data-min") || "0");
+  var btns    = el.querySelectorAll("button");
+  var input   = document.getElementById(inputId);
+  btns[0].onclick = function() {
+    var v = parseFloat(input.value) || min;
+    if (v > min) { input.value = v - 1; input.dispatchEvent(new Event("input")); }
+  };
+  btns[1].onclick = function() {
+    var v = parseFloat(input.value) || min;
+    input.value = v + 1; input.dispatchEvent(new Event("input"));
+  };
+});
+
+// ── Unit conversion ───────────────────────────────────────────────────────────
+var unitMult = 1;
+var unitName = "px";
+
+document.getElementById("unit-select").onchange = function() {
+  unitMult = parseFloat(this.value);
+  unitName = this.options[this.selectedIndex].text;
+  document.querySelectorAll(".unit-tag").forEach(function(el) { el.textContent = unitName; });
+};
+
+function dim(id) {
+  return (( parseFloat(document.getElementById(id).value) || 0 ) * unitMult).toFixed(3);
+}
+function cnt(id) {
+  return document.getElementById(id).value || "0";
+}
+
+// ── Header: Eye button ────────────────────────────────────────────────────────
+document.getElementById("btn-visibility").onclick = function() {
+  cs.evalScript("toggleGuideVisibility()", function(r) {
+    var visible = r === "ok:shown";
+    document.getElementById("toggle-visibility").className = visible ? "toggle-pill on" : "toggle-pill";
+    document.getElementById("eye-icon").style.opacity = visible ? "1" : "0.35";
+  });
+};
+
+// ── Header: Settings button ───────────────────────────────────────────────────
+document.getElementById("btn-settings").onclick = function(e) {
+  e.stopPropagation();
+  var p = document.getElementById("settings-panel");
+  var open = p.style.display === "block";
+  p.style.display = open ? "none" : "block";
+  if (!open) {
+    cs.evalScript("getDocState()", function(r) {
+      if (r.indexOf("ok:") !== 0) return;
+      var parts = r.replace("ok:","").split("|");
+      var vis    = parts[0] === "1";
+      var locked = parts[1] === "1";
+      document.getElementById("toggle-visibility").className = vis    ? "toggle-pill on" : "toggle-pill";
+      document.getElementById("toggle-lock").className       = locked ? "toggle-pill on" : "toggle-pill";
+      document.getElementById("eye-icon").style.opacity = vis ? "1" : "0.35";
+    });
+  }
+};
+document.addEventListener("click", function() {
+  document.getElementById("settings-panel").style.display = "none";
+});
+document.getElementById("settings-panel").addEventListener("click", function(e) {
+  e.stopPropagation();
+});
+
+document.getElementById("toggle-visibility").onclick = function() {
+  cs.evalScript("toggleGuideVisibility()", function(r) {
+    var visible = r === "ok:shown";
+    document.getElementById("toggle-visibility").className = visible ? "toggle-pill on" : "toggle-pill";
+    document.getElementById("eye-icon").style.opacity = visible ? "1" : "0.35";
+  });
+};
+
+document.getElementById("toggle-lock").onclick = function() {
+  var locked = this.className.indexOf("on") === -1;
+  cs.evalScript('setGuideLock("' + (locked ? "1" : "0") + '")', function() {
+    document.getElementById("toggle-lock").className = locked ? "toggle-pill on" : "toggle-pill";
+  });
+};
+
+document.getElementById("btn-clear-all").onclick = function() {
+  cs.evalScript("clearAllCustomLayers()", function(r) {
+    document.getElementById("settings-panel").style.display = "none";
+  });
+};
+
+// ── Tab Switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab:not(.disabled)").forEach(function(tab) {
+  tab.addEventListener("click", function() {
+    var target = this.getAttribute("data-tab");
+    document.querySelectorAll(".tab").forEach(function(t) { t.classList.remove("active"); });
+    document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.remove("active"); });
+    this.classList.add("active");
+    document.getElementById("panel-" + target).classList.add("active");
+  });
+});
+
+// ── Linked Margins ────────────────────────────────────────────────────────────
+function makeLinkedMargins(linkId, ids) {
+  var linked = true;
+  document.getElementById(linkId).onclick = function() {
+    linked = !linked;
+    this.className = linked ? "link-btn linked" : "link-btn";
+  };
+  ids.forEach(function(id) {
+    document.getElementById(id).addEventListener("input", function() {
+      if (linked) ids.forEach(function(mid) {
+        document.getElementById(mid).value = document.getElementById(id).value;
+      });
+    });
+  });
+}
+makeLinkedMargins("col-link",  ["col-mt","col-mr","col-mb","col-ml"]);
+makeLinkedMargins("mod-link",  ["mod-mt","mod-mr","mod-mb","mod-ml"]);
+makeLinkedMargins("base-link", ["base-mt","base-mr","base-mb","base-ml"]);
+
+// ── Linked Gap (Modular) ──────────────────────────────────────────────────────
+var gapLinked = true;
+document.getElementById("mod-gap-link").onclick = function() {
+  gapLinked = !gapLinked;
+  this.className = gapLinked ? "gap-link-btn linked" : "gap-link-btn";
+};
+["mod-gapx","mod-gapy"].forEach(function(id) {
+  document.getElementById(id).addEventListener("input", function() {
+    if (gapLinked) {
+      document.getElementById("mod-gapx").value = this.value;
+      document.getElementById("mod-gapy").value = this.value;
+    }
+  });
+});
+
+// ── Save / Load settings ──────────────────────────────────────────────────────
+var STORAGE_KEY = "gg_v1";
+var ALL_IDS = ["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml",
+               "mod-cols-val","mod-rows-val","mod-gapx","mod-gapy","mod-mt","mod-mr","mod-mb","mod-ml",
+               "base-spacing","base-bold-val","base-mt","base-mr","base-mb","base-ml",
+               "base-direction","comp-type",
+               "comp-mt","comp-mr","comp-mb","comp-ml","comp-spacing","comp-count",
+               "lay-type","lay-zones","lay-cols1","lay-cols2","lay-gutter",
+               "lay-mt","lay-mr","lay-mb","lay-ml"];
+
+function saveSettings() {
+  try {
+    var s = { unit: document.getElementById("unit-select").value, v: {} };
+    ALL_IDS.forEach(function(id) {
+      var el = document.getElementById(id); if (el) s.v[id] = el.value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch(e) {}
+}
+
+function loadSettings() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    var s = JSON.parse(raw);
+    if (s.unit) {
+      var sel = document.getElementById("unit-select");
+      sel.value = s.unit;
+      unitMult = parseFloat(s.unit);
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === s.unit) { unitName = sel.options[i].text; break; }
+      }
+      document.querySelectorAll(".unit-tag").forEach(function(el) { el.textContent = unitName; });
+    }
+    if (s.v) ALL_IDS.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && s.v[id] !== undefined) el.value = s.v[id];
+    });
+    if (typeof updateCompUI === "function") updateCompUI();
+    var ct = document.getElementById("comp-type");
+    if (ct) document.getElementById("comp-info").textContent = compInfoMap[ct.value] || "";
+  } catch(e) {}
+}
+
+document.getElementById("unit-select").addEventListener("change", function() {
+  saveSettings();
+  updateColPreview();
+  updateModPreview();
+  updateBasePreview();
+});
+
+// ── Artboard Selector ─────────────────────────────────────────────────────────
+var abDims = {};
+
+function showAbSize(prefix, idx) {
+  cs.evalScript('getArtboardSize("' + idx + '")', function(r) {
+    var el = document.getElementById(prefix + "-ab-size");
+    if (!el || r.indexOf("ok:") !== 0) return;
+    var parts = r.replace("ok:","").split("|");
+    var rawW = parseFloat(parts[0]);
+    var rawH = parseFloat(parts[1]);
+    abDims[prefix] = { w: rawW, h: rawH };
+    var W = (rawW / unitMult).toFixed(unitMult === 1 ? 0 : 2);
+    var H = (rawH / unitMult).toFixed(unitMult === 1 ? 0 : 2);
+    el.textContent = W + " \xd7 " + H + " " + unitName;
+    if (prefix === "col") updateColPreview();
+    if (prefix === "mod") updateModPreview();
+    if (prefix === "base") updateBasePreview();
+  });
+}
+
+// ── Column Live Preview ────────────────────────────────────────────────────────
+var colPreviewOn = true;
+
+function f(v) { return v.toFixed(1); }
+
+function updateColPreview() {
+  var svg = document.getElementById("col-preview-svg");
+  if (!svg) return;
+  var W = svg.getBoundingClientRect().width || 260;
+  var H = 88;
+
+  var cols   = Math.max(1, parseInt(document.getElementById("col-val").value)    || 1);
+  var gutter = (parseFloat(document.getElementById("col-gutter").value) || 0) * unitMult;
+  var mt     = (parseFloat(document.getElementById("col-mt").value)     || 0) * unitMult;
+  var mr     = (parseFloat(document.getElementById("col-mr").value)     || 0) * unitMult;
+  var mb     = (parseFloat(document.getElementById("col-mb").value)     || 0) * unitMult;
+  var ml     = (parseFloat(document.getElementById("col-ml").value)     || 0) * unitMult;
+
+  var abW = abDims.col ? abDims.col.w : 595;
+  var abH = abDims.col ? abDims.col.h : 842;
+
+  var pad   = 10;
+  var scale = Math.min((W - pad * 2) / abW, (H - pad * 2) / abH);
+  var pW = abW * scale;
+  var pH = abH * scale;
+  var ox = (W - pW) / 2;
+  var oy = (H - pH) / 2;
+
+  var pMt = Math.min(mt * scale, pH * 0.45);
+  var pMr = Math.min(mr * scale, pW * 0.45);
+  var pMb = Math.min(mb * scale, pH * 0.45);
+  var pMl = Math.min(ml * scale, pW * 0.45);
+  var pG  = gutter * scale;
+
+  var innerW = pW - pMl - pMr;
+  var colW   = Math.max(0, (innerW - (cols - 1) * pG) / cols);
+  var colH   = Math.max(0, pH - pMt - pMb);
+
+  var out = [];
+  out.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pH)+'" fill="#242424" rx="2"/>');
+
+  if (pMt > 0.5) out.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pMt)+'" fill="rgba(0,0,0,.45)"/>');
+  if (pMb > 0.5) out.push('<rect x="'+f(ox)+'" y="'+f(oy+pH-pMb)+'" width="'+f(pW)+'" height="'+f(pMb)+'" fill="rgba(0,0,0,.45)"/>');
+  if (pMl > 0.5) out.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pMl)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+  if (pMr > 0.5) out.push('<rect x="'+f(ox+pW-pMr)+'" y="'+f(oy)+'" width="'+f(pMr)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+
+  for (var i = 0; i < cols; i++) {
+    var cx = ox + pMl + i * (colW + pG);
+    var cy = oy + pMt;
+    if (colW > 0.5 && colH > 0.5) {
+      out.push('<rect x="'+f(cx)+'" y="'+f(cy)+'" width="'+f(colW)+'" height="'+f(colH)+'" fill="rgba(37,90,176,.65)" rx="1"/>');
+    }
+  }
+
+  svg.setAttribute("viewBox", "0 0 " + f(W) + " " + f(H));
+  svg.innerHTML = out.join("");
+}
+
+document.getElementById("col-preview-toggle").onclick = function() {
+  colPreviewOn = !colPreviewOn;
+  this.className = "toggle-pill" + (colPreviewOn ? " on" : "");
+  document.getElementById("col-preview-wrap").style.display = colPreviewOn ? "" : "none";
+  if (colPreviewOn) updateColPreview();
+};
+
+["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml"].forEach(function(id) {
+  document.getElementById(id).addEventListener("input", updateColPreview);
+});
+
+function refreshArtboards(selectId) {
+  var prefix = selectId.replace("-artboard","");
+  cs.evalScript("getArtboardNames()", function(result) {
+    if (!result || result.indexOf("error:") === 0) return;
+    var sel = document.getElementById(selectId);
+    while (sel.options.length > 1) sel.remove(1);
+    result.split("|").forEach(function(name, i) {
+      var opt = document.createElement("option");
+      opt.value = i; opt.text = (i+1) + ". " + name; sel.add(opt);
+    });
+    showAbSize(prefix, sel.value);
+  });
+}
+
+["col","mod","base","comp","lay"].forEach(function(p) {
+  var refreshEl = document.getElementById(p+"-refresh");
+  var artboardEl = document.getElementById(p+"-artboard");
+  if (refreshEl)  refreshEl.onclick  = function() { refreshArtboards(p+"-artboard"); };
+  if (artboardEl) artboardEl.onchange = function() { showAbSize(p, this.value); };
+  if (p !== "comp") refreshArtboards(p+"-artboard");
+});
+updateColPreview();
+updateModPreview();
+updateBasePreview();
+
+// ── Status helper ─────────────────────────────────────────────────────────────
+function setStatus(id, result) {
+  var el = document.getElementById(id);
+  el.textContent = result.replace("ok:","").replace("error:","");
+  el.className   = result.indexOf("ok:") === 0 ? "status" : "status error";
+}
+
+// ── Plugin Power Toggle ───────────────────────────────────────────────────────
+document.getElementById("plugin-power").onclick = function() {
+  var on = this.classList.toggle("off");
+  var targets = document.querySelectorAll(".tabs, .tab-panel");
+  targets.forEach(function(el) { el.classList.toggle("panel-disabled", on); });
+};
+
+// ── Preset Helpers ────────────────────────────────────────────────────────────
+function loadCustomPresets(sel, key) {
+  try {
+    var saved = JSON.parse(localStorage.getItem(key) || "[]");
+    saved.forEach(function(p) {
+      var opt = document.createElement("option");
+      opt.value = p.v; opt.text = p.t;
+      Object.keys(p.d).forEach(function(k) { opt.setAttribute("data-"+k, p.d[k]); });
+      sel.add(opt);
+    });
+  } catch(e) {}
+}
+function saveCustomPreset(sel, key, ids) {
+  var d = {}; ids.forEach(function(id) { d[id] = document.getElementById(id).value; });
+  var v = "c"+Date.now(), t = "Custom " + sel.options.length;
+  var opt = document.createElement("option"); opt.value = v; opt.text = t;
+  Object.keys(d).forEach(function(k) { opt.setAttribute("data-"+k, d[k]); }); sel.add(opt);
+  try {
+    var saved = JSON.parse(localStorage.getItem(key)||"[]");
+    saved.push({v:v,t:t,d:d}); localStorage.setItem(key, JSON.stringify(saved));
+  } catch(e) {}
+}
+
+// ── Columns Preset Dropdown ───────────────────────────────────────────────────
+var colPresetSel = document.getElementById("col-preset-sel");
+loadCustomPresets(colPresetSel, "gg_presets_col");
+colPresetSel.onchange = function() {
+  var o = this.options[this.selectedIndex]; if (!o.value) return;
+  var dc=o.getAttribute("data-cols"), dg=o.getAttribute("data-gutter");
+  var ml=o.getAttribute("data-ml")||"0", mr=o.getAttribute("data-mr")||"0";
+  if(dc) document.getElementById("col-val").value=dc;
+  if(dg) document.getElementById("col-gutter").value=dg;
+  ["col-mt","col-mb"].forEach(function(id){document.getElementById(id).value="0";});
+  document.getElementById("col-ml").value=ml; document.getElementById("col-mr").value=mr;
+  updateColPreview();
+};
+document.getElementById("col-preset-save").onclick = function() {
+  saveCustomPreset(colPresetSel,"gg_presets_col",["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml"]);
+};
+
+// ── Modular Preset Dropdown ───────────────────────────────────────────────────
+var modPresetSel = document.getElementById("mod-preset-sel");
+loadCustomPresets(modPresetSel, "gg_presets_mod");
+modPresetSel.onchange = function() {
+  var o = this.options[this.selectedIndex]; if (!o.value) return;
+  var dc=o.getAttribute("data-cols"), dr=o.getAttribute("data-rows");
+  var dgx=o.getAttribute("data-gapx"), dgy=o.getAttribute("data-gapy");
+  if(dc) document.getElementById("mod-cols-val").value=dc;
+  if(dr) document.getElementById("mod-rows-val").value=dr;
+  if(dgx){document.getElementById("mod-gapx").value=dgx;}
+  if(dgy){document.getElementById("mod-gapy").value=dgy;}
+  updateModPreview();
+};
+document.getElementById("mod-preset-save").onclick = function() {
+  saveCustomPreset(modPresetSel,"gg_presets_mod",["mod-cols-val","mod-rows-val","mod-gapx","mod-gapy","mod-mt","mod-mr","mod-mb","mod-ml"]);
+};
+
+// ── Baseline Preset Dropdown ──────────────────────────────────────────────────
+var basePresetSel = document.getElementById("base-preset-sel");
+loadCustomPresets(basePresetSel, "gg_presets_base");
+basePresetSel.onchange = function() {
+  var o = this.options[this.selectedIndex]; if (!o.value) return;
+  var ds=o.getAttribute("data-spacing");
+  if(ds) document.getElementById("base-spacing").value=ds;
+  updateBasePreview();
+};
+document.getElementById("base-preset-save").onclick = function() {
+  var sp=document.getElementById("base-spacing").value||"8";
+  saveCustomPreset(basePresetSel,"gg_presets_base",["base-spacing","base-bold-val","base-mt","base-mr","base-mb","base-ml"]);
+};
+
+// ── Modular Live Preview ──────────────────────────────────────────────────────
+var modPreviewOn = true;
+function updateModPreview() {
+  var svg = document.getElementById("mod-preview-svg"); if (!svg) return;
+  var W = svg.getBoundingClientRect().width || 260, H = 88;
+  var cols=(Math.max(1,parseInt(document.getElementById("mod-cols-val").value)||1));
+  var rows=(Math.max(1,parseInt(document.getElementById("mod-rows-val").value)||1));
+  var gX=(parseFloat(document.getElementById("mod-gapx").value)||0)*unitMult;
+  var gY=(parseFloat(document.getElementById("mod-gapy").value)||0)*unitMult;
+  var mt=(parseFloat(document.getElementById("mod-mt").value)||0)*unitMult;
+  var mr=(parseFloat(document.getElementById("mod-mr").value)||0)*unitMult;
+  var mb=(parseFloat(document.getElementById("mod-mb").value)||0)*unitMult;
+  var ml=(parseFloat(document.getElementById("mod-ml").value)||0)*unitMult;
+  var abW=abDims.mod?abDims.mod.w:595, abH=abDims.mod?abDims.mod.h:842;
+  var pad=10, sc=Math.min((W-pad*2)/abW,(H-pad*2)/abH);
+  var pW=abW*sc, pH=abH*sc, ox=(W-pW)/2, oy=(H-pH)/2;
+  var pMt=Math.min(mt*sc,pH*.4), pMr=Math.min(mr*sc,pW*.4);
+  var pMb=Math.min(mb*sc,pH*.4), pMl=Math.min(ml*sc,pW*.4);
+  var pGX=gX*sc, pGY=gY*sc;
+  var cW=Math.max(0,(pW-pMl-pMr-(cols-1)*pGX)/cols);
+  var cH=Math.max(0,(pH-pMt-pMb-(rows-1)*pGY)/rows);
+  var o=[];
+  o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pH)+'" fill="#242424" rx="2"/>');
+  if(pMt>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pMt)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMb>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy+pH-pMb)+'" width="'+f(pW)+'" height="'+f(pMb)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMl>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pMl)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMr>.5)o.push('<rect x="'+f(ox+pW-pMr)+'" y="'+f(oy)+'" width="'+f(pMr)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+  for(var r=0;r<rows;r++) for(var c=0;c<cols;c++) {
+    var cx=ox+pMl+c*(cW+pGX), cy=oy+pMt+r*(cH+pGY);
+    if(cW>.5&&cH>.5) o.push('<rect x="'+f(cx)+'" y="'+f(cy)+'" width="'+f(cW)+'" height="'+f(cH)+'" fill="rgba(37,90,176,.6)" rx="1"/>');
+  }
+  svg.setAttribute("viewBox","0 0 "+f(W)+" "+f(H)); svg.innerHTML=o.join("");
+}
+document.getElementById("mod-preview-toggle").onclick = function() {
+  modPreviewOn=!modPreviewOn;
+  this.className="toggle-pill"+(modPreviewOn?" on":"");
+  document.getElementById("mod-preview-wrap").style.display=modPreviewOn?"":"none";
+  if(modPreviewOn) updateModPreview();
+};
+["mod-cols-val","mod-rows-val","mod-gapx","mod-gapy","mod-mt","mod-mr","mod-mb","mod-ml"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",updateModPreview);
+});
+
+// ── Baseline Live Preview ─────────────────────────────────────────────────────
+var basePreviewOn = true;
+function updateBasePreview() {
+  var svg = document.getElementById("base-preview-svg"); if (!svg) return;
+  var W=svg.getBoundingClientRect().width||260, H=88;
+  var sp=Math.max(1,(parseFloat(document.getElementById("base-spacing").value)||8)*unitMult);
+  var dir=document.getElementById("base-direction").value;
+  var mt=(parseFloat(document.getElementById("base-mt").value)||0)*unitMult;
+  var mr=(parseFloat(document.getElementById("base-mr").value)||0)*unitMult;
+  var mb=(parseFloat(document.getElementById("base-mb").value)||0)*unitMult;
+  var ml=(parseFloat(document.getElementById("base-ml").value)||0)*unitMult;
+  var abW=abDims.base?abDims.base.w:595, abH=abDims.base?abDims.base.h:842;
+  var pad=10, sc=Math.min((W-pad*2)/abW,(H-pad*2)/abH);
+  var pW=abW*sc, pH=abH*sc, ox=(W-pW)/2, oy=(H-pH)/2;
+  var pMt=Math.min(mt*sc,pH*.4), pMr=Math.min(mr*sc,pW*.4);
+  var pMb=Math.min(mb*sc,pH*.4), pMl=Math.min(ml*sc,pW*.4);
+  var pSp=Math.max(1,sp*sc);
+  var lc="rgba(37,90,176,.75)", lw=0.5;
+  var o=[];
+  o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pH)+'" fill="#242424" rx="2"/>');
+  if(dir==="horizontal"||dir==="both"){
+    for(var y=oy+pMt+pSp;y<oy+pH-pMb-0.5;y+=pSp)
+      o.push('<line x1="'+f(ox+pMl)+'" y1="'+f(y)+'" x2="'+f(ox+pW-pMr)+'" y2="'+f(y)+'" stroke="'+lc+'" stroke-width="'+lw+'"/>');
+  }
+  if(dir==="vertical"||dir==="both"){
+    for(var x=ox+pMl+pSp;x<ox+pW-pMr-0.5;x+=pSp)
+      o.push('<line x1="'+f(x)+'" y1="'+f(oy+pMt)+'" x2="'+f(x)+'" y2="'+f(oy+pH-pMb)+'" stroke="'+lc+'" stroke-width="'+lw+'"/>');
+  }
+  if(pMt>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pW)+'" height="'+f(pMt)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMb>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy+pH-pMb)+'" width="'+f(pW)+'" height="'+f(pMb)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMl>.5)o.push('<rect x="'+f(ox)+'" y="'+f(oy)+'" width="'+f(pMl)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+  if(pMr>.5)o.push('<rect x="'+f(ox+pW-pMr)+'" y="'+f(oy)+'" width="'+f(pMr)+'" height="'+f(pH)+'" fill="rgba(0,0,0,.45)"/>');
+  svg.setAttribute("viewBox","0 0 "+f(W)+" "+f(H)); svg.innerHTML=o.join("");
+}
+document.getElementById("base-preview-toggle").onclick = function() {
+  basePreviewOn=!basePreviewOn;
+  this.className="toggle-pill"+(basePreviewOn?" on":"");
+  document.getElementById("base-preview-wrap").style.display=basePreviewOn?"":"none";
+  if(basePreviewOn) updateBasePreview();
+};
+["base-spacing","base-mt","base-mr","base-mb","base-ml"].forEach(function(id){
+  document.getElementById(id).addEventListener("input",updateBasePreview);
+});
+document.getElementById("base-direction").addEventListener("change",updateBasePreview);
+
+// ── Columns ───────────────────────────────────────────────────────────────────
+document.getElementById("col-generate").onclick = function() {
+  var p = [cnt("col-val"), dim("col-gutter"), dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"),
+           document.getElementById("col-artboard").value];
+  document.getElementById("col-status").textContent = "Generating...";
+  cs.evalScript('createColumnGrid("' + p.join("|") + '")', function(r) { setStatus("col-status", r); saveSettings(); });
+};
+document.getElementById("col-clear").onclick = function() {
+  cs.evalScript("clearAllGuides()", function(r) { setStatus("col-status", r); });
+};
+
+// ── Modular ───────────────────────────────────────────────────────────────────
+document.getElementById("mod-generate").onclick = function() {
+  var p = [cnt("mod-cols-val"), cnt("mod-rows-val"), dim("mod-gapx"), dim("mod-gapy"),
+           dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"),
+           document.getElementById("mod-artboard").value];
+  document.getElementById("mod-status").textContent = "Generating...";
+  cs.evalScript('createModularGrid("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); saveSettings(); });
+};
+document.getElementById("mod-clear").onclick = function() {
+  cs.evalScript("clearAllGuides()", function(r) { setStatus("mod-status", r); });
+};
+
+// ── Baseline ──────────────────────────────────────────────────────────────────
+document.getElementById("base-generate").onclick = function() {
+  var p = [document.getElementById("base-direction").value,
+           dim("base-spacing"), cnt("base-bold-val"),
+           dim("base-mt"), dim("base-mr"), dim("base-mb"), dim("base-ml"),
+           document.getElementById("base-artboard").value];
+  document.getElementById("base-status").textContent = "Generating...";
+  cs.evalScript('createBaselineGrid("' + p.join("|") + '")', function(r) { setStatus("base-status", r); saveSettings(); });
+};
+document.getElementById("base-clear").onclick = function() {
+  cs.evalScript("clearAllGuides()", function(r) { setStatus("base-status", r); });
+};
+
+// ── Comp ──────────────────────────────────────────────────────────────────────
+makeLinkedMargins("comp-link", ["comp-mt","comp-mr","comp-mb","comp-ml"]);
+refreshArtboards("comp-artboard");
+
+var compInfoMap = {
+  thirds:      "Divides the canvas into thirds horizontally and vertically — classic composition rule.",
+  phi:         "Places guides at the golden ratio (≈ 38.2% / 61.8%) — more organic than Rule of Thirds.",
+  spiral:      "Logarithmic golden spiral + golden rectangle dividers — guides the eye through the frame.",
+  quadrants:   "Single horizontal + vertical guide through the center — divides canvas into four equal quadrants.",
+  center:      "Single horizontal + vertical guide through the center of the canvas.",
+  fibonacci:   "Divides by Fibonacci ratios (1/8, 2/8, 3/8, 5/8…) — natural harmonic proportions.",
+  triangle:    "Equilateral triangle inscribed in the frame — strong upward directional energy.",
+  harmonic:    "Corner-to-corner diagonals + perpendicular reciprocals — reveals natural sub-rectangles.",
+  baroque:     "Primary diagonal (TL→BR) + reciprocal lines — the classic baroque composition sweep.",
+  sinister:    "Primary diagonal (TR→BL) + reciprocal lines — mirror of the baroque; tension and drama.",
+  "14line":    "Both diagonals, center cross, and all four reciprocals — the full 14-line armature.",
+  roottwo:     "Places guides at 1/√2 (≈ 70.7%) — the harmonic division of an A-series rectangle.",
+  root3:       "Guides at 1/√3 (≈ 57.7%) — harmonic proportions of a √3 rectangle.",
+  root4:       "Guides at 1/2 (50%) — same as a 2:1 rectangle; strong symmetry.",
+  root5:       "Guides at 1/√5 (≈ 44.7%) — the proportion underlying the golden ratio.",
+  rabatment:   "Inscribes a square from each edge — reveals natural focal zones in any rectangle.",
+  diagonal:    "Draws corner-to-corner diagonals (X) on a 'Diagonal' layer. Margin option shifts the corners.",
+  radial:      "Draws evenly-spaced lines through the center on a 'Radial Grid' layer. Set number of lines.",
+  isometric:   "Draws ±30° diagonal lines on an 'Iso Grid' layer. Use spacing to control cell size.",
+  vandegraaf:  "Classic manuscript canon: inner W/9, top H/9, outer 2W/9, bottom 2H/9.",
+  villard:     "Villard de Honnecourt's medieval diagram: diagonals, half-page crosses, W/9 margin guides.",
+  tschichold:  "Jan Tschichold's New Typography canon: inner W/9, top H/9, outer W/4.5, bottom H/4.5.",
+  modulor:     "Le Corbusier's Modulor: golden ratio cascade (φ⁻¹, φ⁻², φ⁻³) from all four edges — based on human body proportions.",
+  steelyard:   "Asymmetric balance: a large element and small counterweight either side of a pivot point.",
+  ocircle:     "Circle inscribed in the frame — emphasises central focal mass and radial balance.",
+  lshape:      "L-shaped guide — leads the eye along two perpendicular axes.",
+  ushape:      "U-shaped guide — frames the bottom and sides, leaving the top open.",
+  cshape:      "C-shaped guide — open-sided container; implies entry from the right.",
+  tshape:      "T-shaped guide — strong horizontal cap with a central descending axis.",
+  tunnel:      "Concentric rectangles converging to the centre — creates depth and leading lines.",
+  scurve:      "Flowing S-shaped curve through the canvas — creates natural eye movement and dynamic energy.",
+  zpattern:    "Z-pattern reading flow: TL → TR → BL → BR — natural Western eye movement through a layout.",
+  fpattern:    "F-pattern reading flow: full top scan, shorter mid scan, left vertical — dominant web reading behaviour.",
+  vesica:      "Two overlapping circles — the vesica piscis; sacred geometry root form.",
+  flower:      "19-circle Flower of Life pattern — repeating hexagonal sacred geometry.",
+  metatron:    "Metatron's Cube: Flower of Life centres connected by all possible lines.",
+  safearea:    "Action Safe (90%) and Title Safe (80%) broadcast zones — ensures content is visible on all displays.",
+  "1point":    "All lines converge to a central vanishing point — classic frontal perspective.",
+  "2point":    "Lines converge to left and right vanishing points — corner-view perspective.",
+  "3point":    "Three vanishing points (L, R, top) — dramatic bird's-eye or worm's-eye perspective.",
+  axial:       "Central axis + quarter guides + two horizontal thirds — typographic axial alignment.",
+  dilatational:"Concentric scaled rectangles radiating from the centre — rhythmic expansion."
+};
+
+var noMarginTypes = {
+  center:1, vandegraaf:1, isometric:1, radial:1,
+  quadrants:1, axial:1, tschichold:1, villard:1, modulor:1,
+  steelyard:1, ocircle:1, lshape:1, ushape:1, cshape:1, tshape:1, tunnel:1,
+  scurve:1, zpattern:1, fpattern:1,
+  vesica:1, flower:1,
+  "1point":1, "2point":1, "3point":1, dilatational:1,
+  safearea:1
+};
+var spacingTypes   = { isometric:1 };
+var countTypes     = { radial:1, "1point":1, "2point":1, "3point":1, dilatational:1 };
+var pathLayerNames = {
+  isometric:"Iso Grid", radial:"Radial Grid", diagonal:"Diagonal",
+  spiral:"Golden Spiral",
+  triangle:"Composition", steelyard:"Composition", ocircle:"Composition",
+  lshape:"Composition", ushape:"Composition", cshape:"Composition",
+  tshape:"Composition", tunnel:"Composition", dilatational:"Composition",
+  scurve:"Composition", zpattern:"Composition", fpattern:"Composition",
+  harmonic:"Dynamic Symmetry", baroque:"Dynamic Symmetry", sinister:"Dynamic Symmetry",
+  "14line":"Dynamic Symmetry", villard:"Dynamic Symmetry",
+  vesica:"Sacred Geometry", flower:"Sacred Geometry",
+  "1point":"Perspective", "2point":"Perspective", "3point":"Perspective",
+  safearea:"Cinematic"
+};
+
+var countLabels = {
+  radial:"Lines", "1point":"Lines", "2point":"Lines", "3point":"Lines", dilatational:"Steps"
+};
+function updateCompUI() {
+  var type = document.getElementById("comp-type").value;
+  document.getElementById("comp-margins-row").style.display = noMarginTypes[type] ? "none" : "";
+  document.getElementById("comp-spacing-row").style.display = spacingTypes[type]  ? ""     : "none";
+  document.getElementById("comp-count-row").style.display   = countTypes[type]    ? ""     : "none";
+  if (countTypes[type]) {
+    var label = countLabels[type] || "Count";
+    document.querySelector("#comp-count-row .section-label").textContent = label;
+  }
+}
+
+document.getElementById("comp-type").onchange = function() {
+  document.getElementById("comp-info").textContent = compInfoMap[this.value] || "";
+  updateCompUI();
+};
+updateCompUI();
+loadSettings();
+
+document.getElementById("comp-generate").onclick = function() {
+  var type = document.getElementById("comp-type").value;
+  var ab   = document.getElementById("comp-artboard").value;
+
+  var fnMap = {
+    thirds:      "createRuleOfThirds",
+    phi:         "createPhiGrid",
+    spiral:      "createGoldenSpiral",
+    quadrants:   "createQuadrants",
+    center:      "createCenterCross",
+    fibonacci:   "createFibonacci",
+    triangle:    "createTriangleComp",
+    harmonic:    "createHarmonicArmature",
+    baroque:     "createBaroqueDiagonal",
+    sinister:    "createSinisterDiagonal",
+    "14line":    "create14LineArmature",
+    roottwo:     "createRootTwo",
+    root3:       "createRootN",
+    root4:       "createRootN",
+    root5:       "createRootN",
+    rabatment:   "createRabatment",
+    diagonal:    "createDiagonalCross",
+    radial:      "createRadialGrid",
+    isometric:   "createIsometricGrid",
+    vandegraaf:  "createVanDeGraaf",
+    villard:     "createVillardDiagram",
+    tschichold:  "createTschichold",
+    steelyard:   "createSteelyard",
+    ocircle:     "createOCircle",
+    lshape:      "createLShape",
+    ushape:      "createUShape",
+    cshape:      "createCShape",
+    tshape:      "createTShape",
+    tunnel:      "createTunnel",
+    vesica:      "createVesicaPiscis",
+    flower:      "createFlowerOfLife",
+    metatron:    "createMetatronsCube",
+    sriyanta:    "createSriYantra",
+    "1point":    "create1PointPerspective",
+    "2point":    "create2PointPerspective",
+    "3point":    "create3PointPerspective",
+    axial:       "createAxialSystem",
+    dilatational:"createDilatational",
+    scurve:      "createSCurve",
+    zpattern:    "createZPattern",
+    fpattern:    "createFPattern",
+    safearea:    "createSafeAreas",
+    modulor:     "createModulor"
+  };
+  var fn = fnMap[type];
+  if (!fn) return;
+
+  var callStr;
+  if (type === "isometric") {
+    var sp    = document.getElementById("comp-spacing").value || "20";
+    var showH = document.getElementById("comp-iso-h").checked ? "1" : "0";
+    callStr   = fn + '("' + sp + "|" + showH + "|" + ab + '")';
+  } else if (type === "radial") {
+    var linesR = document.getElementById("comp-count").value || "12";
+    callStr = fn + '("' + linesR + "|" + ab + '")';
+  } else if (type === "1point" || type === "2point" || type === "3point") {
+    var linesP = document.getElementById("comp-count").value || "8";
+    callStr = fn + '("' + linesP + "|" + ab + '")';
+  } else if (type === "dilatational") {
+    var steps = document.getElementById("comp-count").value || "5";
+    callStr = fn + '("' + steps + "|" + ab + '")';
+  } else if (type === "root3" || type === "root4" || type === "root5") {
+    var n = type.replace("root","");
+    var mStr = [dim("comp-mt"), dim("comp-mr"), dim("comp-mb"), dim("comp-ml"), ab].join("|");
+    callStr = fn + '("' + n + "|" + mStr + '")';
+  } else if (noMarginTypes[type]) {
+    callStr = fn + '("' + ab + '")';
+  } else {
+    var mStr2 = [dim("comp-mt"), dim("comp-mr"), dim("comp-mb"), dim("comp-ml"), ab].join("|");
+    callStr = fn + '("' + mStr2 + '")';
+  }
+  document.getElementById("comp-status").textContent = "Generating...";
+  cs.evalScript(callStr, function(r) { setStatus("comp-status", r); saveSettings(); });
+};
+
+document.getElementById("comp-clear").onclick = function() {
+  var type = document.getElementById("comp-type").value;
+  var layerName = pathLayerNames[type];
+  var fn;
+  // spiral adds both guides AND a path layer — need both cleared
+  if (type === "spiral") {
+    fn = 'clearAllCustomLayers()';
+  } else if (layerName) {
+    fn = 'clearPathLayer("' + layerName + '")';
+  } else {
+    fn = "clearAllGuides()";
+  }
+  cs.evalScript(fn, function(r) { setStatus("comp-status", r); });
+};
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+makeLinkedMargins("lay-link", ["lay-mt","lay-mr","lay-mb","lay-ml"]);
+
+var layInfoMap = {
+  manuscript:  "Single-column text block framed by generous margins — the foundation of book typography.",
+  hierarchical:"Divides the page into golden-ratio zones for visual priority (headline / body / footer).",
+  compound:    "Two overlapping column systems — creates a rich grid for complex editorial layouts.",
+  spacing8:    "8pt baseline grid — every spacing, size, and position snaps to 8pt multiples.",
+  spacing4:    "4pt baseline grid — fine-grained spacing for dense UI and compact layouts.",
+  spacingpx:   "1px pixel grid — exact pixel-level alignment for screen and icon work.",
+  responsive:  "Breakpoint guides at 320 / 480 / 768 / 1024 / 1280 / 1440 — responsive design reference."
+};
+
+var layNoMarginTypes = { spacing8:1, spacing4:1, spacingpx:1, responsive:1 };
+var layZonesTypes    = { hierarchical:1 };
+var layCompoundTypes = { compound:1 };
+
+function updateLayUI() {
+  var type = document.getElementById("lay-type").value;
+  document.getElementById("lay-margins-row").style.display  = layNoMarginTypes[type]  ? "none" : "";
+  document.getElementById("lay-zones-row").style.display    = layZonesTypes[type]     ? ""     : "none";
+  document.getElementById("lay-compound-row").style.display = layCompoundTypes[type]  ? ""     : "none";
+  document.getElementById("lay-info").textContent = layInfoMap[type] || "";
+}
+
+document.getElementById("lay-type").onchange = updateLayUI;
+updateLayUI();
+
+document.getElementById("lay-generate").onclick = function() {
+  var type = document.getElementById("lay-type").value;
+  var ab   = document.getElementById("lay-artboard").value;
+  var callStr;
+
+  if (type === "manuscript") {
+    var mStr = [dim("lay-mt"), dim("lay-mr"), dim("lay-mb"), dim("lay-ml"), ab].join("|");
+    callStr = 'createManuscriptGrid("' + mStr + '")';
+  } else if (type === "hierarchical") {
+    var zones = document.getElementById("lay-zones").value || "3";
+    var mStr  = [dim("lay-mt"), dim("lay-mr"), dim("lay-mb"), dim("lay-ml"), ab].join("|");
+    callStr = 'createHierarchicalGrid("' + zones + "|" + mStr + '")';
+  } else if (type === "compound") {
+    var c1  = document.getElementById("lay-cols1").value  || "3";
+    var c2  = document.getElementById("lay-cols2").value  || "2";
+    var gut = dim("lay-gutter");
+    var mStr = [dim("lay-mt"), dim("lay-mr"), dim("lay-mb"), dim("lay-ml"), ab].join("|");
+    callStr = 'createCompoundGrid("' + c1 + "|" + c2 + "|" + gut + "|" + mStr + '")';
+  } else if (type === "spacing8") {
+    callStr = 'createBaselineGrid("both|8|0|0|0|0|0|' + ab + '")';
+  } else if (type === "spacing4") {
+    callStr = 'createBaselineGrid("both|4|0|0|0|0|0|' + ab + '")';
+  } else if (type === "spacingpx") {
+    callStr = 'createBaselineGrid("both|1|0|0|0|0|0|' + ab + '")';
+  } else if (type === "responsive") {
+    callStr = 'createResponsiveGrid("' + ab + '")';
+  }
+
+  if (!callStr) return;
+  document.getElementById("lay-status").textContent = "Generating...";
+  cs.evalScript(callStr, function(r) { setStatus("lay-status", r); saveSettings(); });
+};
+
+document.getElementById("lay-clear").onclick = function() {
+  cs.evalScript("clearAllGuides()", function(r) { setStatus("lay-status", r); });
+};
+</script>
+</body>
+</html>

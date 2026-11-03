@@ -1,0 +1,6 @@
+﻿# signing artifacts (generated when packaging the ZXP)
+META-INF/
+mimetype
+*.zxp
+*.p12
+
