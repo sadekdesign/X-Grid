@@ -1661,7 +1661,7 @@ function createGridShapes(params) {
         var prev = doc.activeLayer, layer = xgFindLayer(doc.layers, "X-Grid Shapes");
         if (!layer) { layer = doc.layers.add(); layer.name = "X-Grid Shapes"; }
         layer.locked = false; layer.visible = true;
-        var fill = makeColor(37, 90, 176), n = 0;
+        var fill = makeColor(202, 253, 0), n = 0;   // X lime
         for (var c = 0; c < cells.length; c++) {
             var k = cells[c], g = layer.groupItems.add();
             g.name = rows > 1 ? cols + "\xd7" + rows + W_CELLS : cols + W_COLS;
