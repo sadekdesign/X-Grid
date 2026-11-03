@@ -328,6 +328,7 @@ body {
   <select id="ab-target" title="Where the grid is drawn">
     <option value="-2">Active artboard</option>
     <option value="-1">All artboards</option>
+    <option value="-3">Selection (inside selected objects)</option>
   </select>
   <div class="ab-size" id="ab-size"></div>
 </div>
@@ -1101,7 +1102,7 @@ function abTarget() { return document.getElementById("ab-target").value; }
 function fmtDim(v) { return (v / unitMult).toFixed(unitMult === 1 ? 0 : 2); }
 
 function refreshAbInfo(force) {
-  cs.evalScript("getArtboardInfo()", function(r) {
+  cs.evalScript('getArtboardInfo("' + (abTarget() === "-3" ? "1" : "0") + '")', function(r) {
     if (!force && r === abKey) return;
     abKey = r;
     var info = null;
@@ -1114,7 +1115,7 @@ function renderAbTarget(info) {
   var sel = document.getElementById("ab-target");
   var mode = sel.value;
   abInfo = info;
-  while (sel.options.length > 2) sel.remove(2);
+  while (sel.options.length > 3) sel.remove(3);
   if (!info || !info.abs.length) {
     sel.disabled = true;
     sel.options[0].text = "Active artboard";
@@ -1131,7 +1132,7 @@ function renderAbTarget(info) {
     var o = document.createElement("option");
     o.value = i; o.text = (i + 1) + ". " + a.n; sel.add(o);
   });
-  if (mode === "-1" || mode === "-2") sel.value = mode;
+  if (mode === "-1" || mode === "-2" || mode === "-3") sel.value = mode;
   else {
     // keep a specific pick by name: indexes shift when artboards are reordered
     var idx = -1;
@@ -1151,6 +1152,11 @@ function updateAbSize() {
     a = same ? abs[0] : abs[abInfo.active];
     txt = same ? fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName + " \xb7 " + abs.length + " artboards"
                : abs.length + " artboards \xb7 mixed sizes (preview: active)";
+  } else if (v === "-3") {
+    // size of the selection; nothing selected → show the active artboard dimmed
+    a = abInfo.sel ? { w: abInfo.sel[0], h: abInfo.sel[1] } : abs[abInfo.active];
+    txt = abInfo.sel ? "Selection \xb7 " + fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName
+                     : "Select objects to build the grid inside them";
   } else {
     a = abs[v === "-2" ? abInfo.active : parseInt(v)];
     txt = fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName;
@@ -1161,7 +1167,8 @@ function updateAbSize() {
 }
 
 document.getElementById("ab-target").onchange = function() {
-  abPick = (this.value === "-1" || this.value === "-2") ? null : abInfo.abs[parseInt(this.value)].n;
+  abPick = parseInt(this.value) < 0 ? null : abInfo.abs[parseInt(this.value)].n;
+  abKey = ""; refreshAbInfo(true);
   updateAbSize();
   saveSettings();
 };

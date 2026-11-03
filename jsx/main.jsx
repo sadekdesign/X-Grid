@@ -78,9 +78,30 @@ function xgLen(v, label, positive) {
     if (positive && n <= 0) throw new Error(label + " must be greater than 0.");
     return n;
 }
-// index: an artboard index, or -2 = the active artboard. Generators expand
-// -1 (all artboards) themselves; here it also means the active one.
+// Union of the selected objects' bounds, or null. Text being edited and huge
+// selections (slow to measure on every poll) give null.
+function xgSelectionRect(doc, limit) {
+    var sel = doc.selection;
+    if (!sel || sel.typename === "TextRange" || !sel.length || (limit && sel.length > limit)) return null;
+    var r = null;
+    for (var i = 0; i < sel.length; i++) {
+        var g = sel[i].geometricBounds;
+        if (!r) r = [g[0], g[1], g[2], g[3]];
+        else { r[0] = Math.min(r[0], g[0]); r[1] = Math.max(r[1], g[1]); r[2] = Math.max(r[2], g[2]); r[3] = Math.min(r[3], g[3]); }
+    }
+    return (r && r[2] - r[0] > 0.5 && r[1] - r[3] > 0.5) ? r : null;
+}
+
+// index: an artboard index, -2 = the active artboard, -3 = the bounds of the
+// selection. Generators expand -1 (all artboards) themselves; here it also
+// means the active one.
 function getArtboard(doc, index) {
+    if (index === -3) {
+        var s = xgSelectionRect(doc, 0);
+        if (!s) throw new Error("Select one or more objects to build the grid inside.");
+        if (XG) { XG.rects.sel = s; XG.cur = "sel"; }
+        return s;
+    }
     var i = (index === -1 || index === -2) ? doc.artboards.getActiveArtboardIndex() : index;
     if (isNaN(i) || i < 0 || i >= doc.artboards.length)
         throw new Error("That artboard no longer exists. Pick another one.");
@@ -91,8 +112,11 @@ function getArtboard(doc, index) {
 
 // Items are named after the rect of the artboard they were drawn for, so a
 // regenerate finds them even when they reach past the artboard edge.
-function xgTag(rect) {
-    return XG_LAYER + " " + xgRound(rect[0]) + "," + xgRound(rect[1]) + "," + xgRound(rect[2]) + "," + xgRound(rect[3]);
+// Grids built inside a selection carry a "sel" tag, so regenerating the
+// artboard around them leaves them alone.
+function xgTag(rect, isSel) {
+    return XG_LAYER + (isSel ? " sel " : " ") +
+           xgRound(rect[0]) + "," + xgRound(rect[1]) + "," + xgRound(rect[2]) + "," + xgRound(rect[3]);
 }
 
 // Panel setting: snap guide positions to whole pixels (screen/UI work).
@@ -141,8 +165,11 @@ function xgOwned(item, rects) {
     var cx = (g[0] + g[2]) / 2, cy = (g[1] + g[3]) / 2;
     for (var k in rects) {
         var r = rects[k];
-        if (item.name === xgTag(r)) return true;
-        if (cx >= r[0] && cx <= r[2] && cy <= r[1] && cy >= r[3]) return true;
+        if (item.name === xgTag(r, k === "sel")) return true;
+        // the centre test is for artboards that moved or were resized; it must
+        // not pick up selection grids, nor run for a selection target at all
+        if (k !== "sel" && item.name.indexOf(XG_LAYER + " sel ") !== 0 &&
+            cx >= r[0] && cx <= r[2] && cy <= r[1] && cy >= r[3]) return true;
     }
     return false;
 }
@@ -181,7 +208,7 @@ function xgCommit(msg) {
         if (op.ellipse) it = subs[op.layer].pathItems.ellipse(op.e[0], op.e[1], op.e[2], op.e[3]);
         else { it = subs[op.layer].pathItems.add(); it.setEntirePath(op.pts); it.closed = !!op.closed; }
         xgStyle(it, op);
-        it.name = xgTag(XG.rects[op.ab]);
+        it.name = xgTag(XG.rects[op.ab], op.ab === "sel");
     }
     root.locked = wasLocked;
     try { doc.activeLayer = prev; } catch (e) {}
@@ -399,9 +426,15 @@ function createBaselineGrid(params) {
 // ─── Artboard Names ──────────────────────────────────────────────────────────
 
 // "ok:" + JSON {active, abs:[{n,w,h}]} — the panel polls this, so keep it cheap.
-function getArtboardInfo() {
+// withSel "1": also report the selection size (only while Selection is the
+// target, so the poll doesn't measure big selections for nothing).
+function getArtboardInfo(withSel) {
     if (app.documents.length === 0) return "error:No document open.";
-    var doc = app.activeDocument, out = [];
+    var doc = app.activeDocument, out = [], selJson = "null";
+    if (withSel === "1") {
+        var s = xgSelectionRect(doc, 500);
+        if (s) selJson = "[" + xgRound(s[2] - s[0]) + "," + xgRound(s[1] - s[3]) + "]";
+    }
     for (var i = 0; i < doc.artboards.length; i++) {
         var ab = doc.artboards[i], r = ab.artboardRect;
         var n = String(ab.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\x00-\x1f]/g, " ");
@@ -410,7 +443,7 @@ function getArtboardInfo() {
     var st = getDocState().slice(3).split("|");
     return 'ok:{"doc":"' + String(doc.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"') +
            '","active":' + doc.artboards.getActiveArtboardIndex() +
-           ',"vis":' + st[0] + ',"lock":' + st[1] + ',"has":' + st[2] +
+           ',"vis":' + st[0] + ',"lock":' + st[1] + ',"has":' + st[2] + ',"sel":' + selJson +
            ',"abs":[' + out.join(",") + ']}';
 }
 
@@ -752,11 +785,13 @@ function clearArtboard(idx) {
         var doc  = app.activeDocument;
         var root = xgRootLayer(doc, false);
         if (!root) return "ok:Nothing to clear.";
-        var i = parseInt(idx), rects = {};
-        if (i === -1) for (var a = 0; a < doc.artboards.length; a++) rects[a] = doc.artboards[a].artboardRect;
+        var i = parseInt(idx), rects = {}, label;
+        if (i === -1) { rects = null; label = "all artboards"; }  // selection grids too
+        else if (i === -3) { rects.sel = getArtboard(doc, -3); label = "the selection"; }
         else {
             var n = (i === -2) ? doc.artboards.getActiveArtboardIndex() : i;
             rects[n] = getArtboard(doc, n);
+            label = doc.artboards[n].name;
         }
         var wasLocked = root.locked;
         root.locked = false;
@@ -765,7 +800,7 @@ function clearArtboard(idx) {
             xgClearLayer(root.layers[s], rects);
         }
         root.locked = wasLocked;
-        return "ok:" + (i === -1 ? "Cleared all artboards." : "Cleared " + doc.artboards[n].name + ".");
+        return "ok:Cleared " + label + ".";
     } catch (e) { return "error:" + e.message; }
 }
 
