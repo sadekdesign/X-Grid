@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ExtensionManifest Version="7.0"
   ExtensionBundleId="com.xoutput.xgrid"
-  ExtensionBundleVersion="1.1.1"
+  ExtensionBundleVersion="1.2.0"
   ExtensionBundleName="X-Grid">
 
   <ExtensionList>
-    <Extension Id="com.xoutput.xgrid.panel" Version="1.1.1"/>
+    <Extension Id="com.xoutput.xgrid.panel" Version="1.2.0"/>
   </ExtensionList>
 
   <ExecutionEnvironment>

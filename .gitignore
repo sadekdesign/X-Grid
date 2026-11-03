@@ -4,3 +4,4 @@ mimetype
 *.zxp
 *.p12
 
+dist/

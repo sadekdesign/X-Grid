@@ -297,7 +297,7 @@ body {
 body { background: var(--bg); font-family: var(--font-body); }
 button, select, input { font-family: inherit; }
 
-.logo-mark { display: none; }
+.logo-mark { display: block; width: 18px; height: 18px; border-radius: 5px; background: none; }
 .logo-name {
   font-family: var(--font-display); font-weight: 700; font-size: 15px;
   letter-spacing: -0.04em; text-transform: uppercase; color: var(--pale-lime);
@@ -345,7 +345,7 @@ button, select, input { font-family: inherit; }
 
 <!-- Header -->
 <div class="header">
-  <div class="logo-mark"></div>
+  <img class="logo-mark" src="img/x-output-icon.svg" alt="X-Output" title="X-Output"/>
   <span class="logo-name">X-Grid</span>
   <button class="plugin-power" id="plugin-power" title="Enable / disable plugin"></button>
   <div class="header-icons">
