@@ -402,7 +402,7 @@ body {
     </div>
     <div class="btn-row">
       <button class="btn-primary" id="col-generate">Generate Grid</button>
-      <button class="btn-secondary" id="col-clear">Clear</button>
+      <button class="btn-secondary" id="col-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="col-status"></span>
   </div>
@@ -511,7 +511,7 @@ body {
     </div>
     <div class="btn-row">
       <button class="btn-primary" id="mod-generate">Generate Grid</button>
-      <button class="btn-secondary" id="mod-clear">Clear</button>
+      <button class="btn-secondary" id="mod-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="mod-status"></span>
   </div>
@@ -605,7 +605,7 @@ body {
     </div>
     <div class="btn-row">
       <button class="btn-primary" id="base-generate">Generate Grid</button>
-      <button class="btn-secondary" id="base-clear">Clear</button>
+      <button class="btn-secondary" id="base-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="base-status"></span>
   </div>
@@ -696,7 +696,7 @@ body {
   <div class="bottom-area">
     <div class="btn-row">
       <button class="btn-primary" id="lay-generate">Generate Grid</button>
-      <button class="btn-secondary" id="lay-clear">Clear</button>
+      <button class="btn-secondary" id="lay-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="lay-status"></span>
   </div>
@@ -825,7 +825,7 @@ body {
   <div class="bottom-area">
     <div class="btn-row">
       <button class="btn-primary" id="comp-generate">Generate Grid</button>
-      <button class="btn-secondary" id="comp-clear">Clear</button>
+      <button class="btn-secondary" id="comp-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="comp-status"></span>
   </div>
@@ -1224,6 +1224,11 @@ updateModPreview();
 updateBasePreview();
 
 // ── Status helper ─────────────────────────────────────────────────────────────
+// Clear on a tab = everything X-Grid drew on the artboard(s) picked above.
+// Settings › Clear All still wipes the whole X-Grid layer.
+function clearTarget(statusId) {
+  cs.evalScript('clearArtboard("' + abTarget() + '")', function(r) { setStatus(statusId, r); });
+}
 function setStatus(id, result) {
   var el = document.getElementById(id);
   el.textContent = result.replace("ok:","").replace("error:","");
@@ -1404,7 +1409,7 @@ document.getElementById("col-generate").onclick = function() {
   cs.evalScript('createColumnGrid("' + p.join("|") + '")', function(r) { setStatus("col-status", r); saveSettings(); });
 };
 document.getElementById("col-clear").onclick = function() {
-  cs.evalScript("clearAllGuides()", function(r) { setStatus("col-status", r); });
+  clearTarget("col-status");
 };
 
 // ── Modular ───────────────────────────────────────────────────────────────────
@@ -1416,7 +1421,7 @@ document.getElementById("mod-generate").onclick = function() {
   cs.evalScript('createModularGrid("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); saveSettings(); });
 };
 document.getElementById("mod-clear").onclick = function() {
-  cs.evalScript("clearAllGuides()", function(r) { setStatus("mod-status", r); });
+  clearTarget("mod-status");
 };
 
 // ── Baseline ──────────────────────────────────────────────────────────────────
@@ -1429,7 +1434,7 @@ document.getElementById("base-generate").onclick = function() {
   cs.evalScript('createBaselineGrid("' + p.join("|") + '")', function(r) { setStatus("base-status", r); saveSettings(); });
 };
 document.getElementById("base-clear").onclick = function() {
-  cs.evalScript("clearAllGuides()", function(r) { setStatus("base-status", r); });
+  clearTarget("base-status");
 };
 
 // ── Comp ──────────────────────────────────────────────────────────────────────
@@ -1606,20 +1611,7 @@ document.getElementById("comp-generate").onclick = function() {
   cs.evalScript(callStr, function(r) { setStatus("comp-status", r); saveSettings(); });
 };
 
-document.getElementById("comp-clear").onclick = function() {
-  var type = document.getElementById("comp-type").value;
-  var layerName = pathLayerNames[type];
-  var fn;
-  // spiral adds both guides AND a path layer — need both cleared
-  if (type === "spiral") {
-    fn = 'clearAllCustomLayers()';
-  } else if (layerName) {
-    fn = 'clearPathLayer("' + layerName + '")';
-  } else {
-    fn = "clearAllGuides()";
-  }
-  cs.evalScript(fn, function(r) { setStatus("comp-status", r); });
-};
+document.getElementById("comp-clear").onclick = function() { clearTarget("comp-status"); };
 
 // ── Layout ────────────────────────────────────────────────────────────────────
 makeLinkedMargins("lay-link", ["lay-mt","lay-mr","lay-mb","lay-ml"]);
@@ -1683,7 +1675,7 @@ document.getElementById("lay-generate").onclick = function() {
 };
 
 document.getElementById("lay-clear").onclick = function() {
-  cs.evalScript("clearAllGuides()", function(r) { setStatus("lay-status", r); });
+  clearTarget("lay-status");
 };
 </script>
 </body>

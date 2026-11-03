@@ -718,6 +718,31 @@ function clearPathLayer(name) {
     } catch (e) { return "error:" + e.message; }
 }
 
+// Removes everything X-Grid drew on the target: an artboard index, -2 = the
+// active artboard, -1 = all artboards. Other artboards and user guides stay.
+function clearArtboard(idx) {
+    if (app.documents.length === 0) return "error:No document open.";
+    try {
+        var doc  = app.activeDocument;
+        var root = xgRootLayer(doc, false);
+        if (!root) return "ok:Nothing to clear.";
+        var i = parseInt(idx), rects = {};
+        if (i === -1) for (var a = 0; a < doc.artboards.length; a++) rects[a] = doc.artboards[a].artboardRect;
+        else {
+            var n = (i === -2) ? doc.artboards.getActiveArtboardIndex() : i;
+            rects[n] = getArtboard(doc, n);
+        }
+        var wasLocked = root.locked;
+        root.locked = false;
+        for (var s = 0; s < root.layers.length; s++) {
+            root.layers[s].locked = false;
+            xgClearLayer(root.layers[s], rects);
+        }
+        root.locked = wasLocked;
+        return "ok:" + (i === -1 ? "Cleared all artboards." : "Cleared " + doc.artboards[n].name + ".");
+    } catch (e) { return "error:" + e.message; }
+}
+
 function clearAllPathLayers() {
     return clearAllCustomLayers();
 }
