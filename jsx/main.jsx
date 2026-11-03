@@ -160,7 +160,9 @@ function xgSublayer(root, name, create) {
 
 // Belongs to one of the artboards: tagged for it, or (artboard moved or
 // resized since) its centre lies on it.
-function xgOwned(item, rects) {
+// live: tags of every artboard as it is now. An item tagged for another
+// existing artboard is never taken by the centre test (overlapping artboards).
+function xgOwned(item, rects, live) {
     var g  = item.geometricBounds;
     var cx = (g[0] + g[2]) / 2, cy = (g[1] + g[3]) / 2;
     for (var k in rects) {
@@ -168,16 +170,21 @@ function xgOwned(item, rects) {
         if (item.name === xgTag(r, k === "sel")) return true;
         // the centre test is for artboards that moved or were resized; it must
         // not pick up selection grids, nor run for a selection target at all
-        if (k !== "sel" && item.name.indexOf(XG_LAYER + " sel ") !== 0 &&
+        if (k !== "sel" && item.name.indexOf(XG_LAYER + " sel ") !== 0 && !live[item.name] &&
             cx >= r[0] && cx <= r[2] && cy <= r[1] && cy >= r[3]) return true;
     }
     return false;
 }
 
 function xgClearLayer(layer, rects) {
+    var live = {};
+    if (rects) {
+        var abs = app.activeDocument.artboards;
+        for (var a = 0; a < abs.length; a++) live[xgTag(abs[a].artboardRect)] = true;
+    }
     for (var i = layer.pageItems.length - 1; i >= 0; i--) {
         var it = layer.pageItems[i];
-        try { if (!rects || xgOwned(it, rects)) it.remove(); } catch (e) {}
+        try { if (!rects || xgOwned(it, rects, live)) it.remove(); } catch (e) {}
     }
 }
 
@@ -203,12 +210,17 @@ function xgCommit(msg) {
         var name = XG.ops[i].layer;
         if (!subs[name]) { subs[name] = xgSublayer(root, name, true); xgClearLayer(subs[name], XG.rects); }
     }
+    var noted = {};
     for (var j = 0; j < XG.ops.length; j++) {
         var op = XG.ops[j], it;
         if (op.ellipse) it = subs[op.layer].pathItems.ellipse(op.e[0], op.e[1], op.e[2], op.e[3]);
         else { it = subs[op.layer].pathItems.add(); it.setEntirePath(op.pts); it.closed = !!op.closed; }
         xgStyle(it, op);
         it.name = xgTag(XG.rects[op.ab], op.ab === "sel");
+        // the first item per artboard and sublayer carries the recipe, so the
+        // grid can be loaded back into the panel or rebuilt when the artboard
+        // is resized
+        if (!noted[op.ab + "/" + op.layer]) { noted[op.ab + "/" + op.layer] = true; it.note = XG.recipe; }
     }
     root.locked = wasLocked;
     try { doc.activeLayer = prev; } catch (e) {}
@@ -219,12 +231,16 @@ function xgCommit(msg) {
 // Wraps a generator: queue → commit on "ok:", discard on error, never throw.
 // guides: the sublayer this generator's guides go to, so a column grid and
 // safe zones (say) can sit on the same artboard and each regenerates alone.
-function xgWrap(fn, guides) {
+// name: the generator's name, kept in the recipe ("xg1;<name>;<params>",
+// params without the trailing artboard field, which every generator has).
+function xgWrap(fn, guides, name) {
     return function (params) {
         if (app.documents.length === 0) return "error:No document open.";
         if (XG_DEPTH > 0) return fn(params);
         XG_DEPTH++;
-        XG = { ops: [], rects: {}, keys: {}, guides: 0, guideLayer: guides };
+        var p = String(params).split("|"); p.pop();
+        XG = { ops: [], rects: {}, keys: {}, guides: 0, guideLayer: guides,
+               recipe: "xg1;" + name + ";" + p.join("|") };
         try {
             var r = fn(params);
             if (typeof r === "string" && r.indexOf("ok:") === 0 && XG.ops.length) r = xgCommit(r);
@@ -438,7 +454,8 @@ function getArtboardInfo(withSel) {
     for (var i = 0; i < doc.artboards.length; i++) {
         var ab = doc.artboards[i], r = ab.artboardRect;
         var n = String(ab.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\x00-\x1f]/g, " ");
-        out.push('{"n":"' + n + '","w":' + xgRound(r[2] - r[0]) + ',"h":' + xgRound(r[1] - r[3]) + '}');
+        out.push('{"n":"' + n + '","w":' + xgRound(r[2] - r[0]) + ',"h":' + xgRound(r[1] - r[3]) +
+                 ',"r":"' + xgRound(r[0]) + "," + xgRound(r[1]) + "," + xgRound(r[2]) + "," + xgRound(r[3]) + '"}');
     }
     var st = getDocState().slice(3).split("|");
     return 'ok:{"doc":"' + String(doc.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"') +
@@ -1612,6 +1629,71 @@ function clearAllCustomLayers() {
     } catch (e) { return "error:" + e.message; }
 }
 
+// ─── Recipes: load a grid back, rebuild it when the artboard changes ─────────
+
+// Recipes on items carrying the given tag, deduplicated.
+function xgRecipesByTag(root, tag) {
+    var out = [], seen = {};
+    for (var s = 0; s < root.layers.length; s++) {
+        var items = root.layers[s].pageItems;
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            if (it.name !== tag || it.note.indexOf("xg1;") !== 0 || seen[it.note]) continue;
+            seen[it.note] = true;
+            out.push(it.note);
+        }
+    }
+    return out;
+}
+
+function xgJsonStr(s) { return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"'; }
+
+// "ok:" + JSON [{fn, p}] for the grids on an artboard (-2 = active, -3 = selection).
+function getRecipes(idx) {
+    if (app.documents.length === 0) return "error:No document open.";
+    try {
+        var doc = app.activeDocument, root = xgRootLayer(doc, false), i = parseInt(idx);
+        if (!root || i === -1) return "ok:[]";
+        var tag = (i === -3) ? xgTag(getArtboard(doc, -3), true) : xgTag(getArtboard(doc, i));
+        var list = xgRecipesByTag(root, tag), out = [];
+        for (var k = 0; k < list.length; k++) {
+            var r = list[k].split(";");
+            out.push('{"fn":' + xgJsonStr(r[1]) + ',"p":' + xgJsonStr(r.slice(2).join(";")) + '}');
+        }
+        return "ok:[" + out.join(",") + "]";
+    } catch (e) { return "ok:[]"; }
+}
+
+// Artboard idx was moved or resized from oldRect ("l,t,r,b"): rebuild every
+// X-Grid grid that was drawn for the old rect, on the artboard as it is now.
+// One script call, so it is one undo step.
+function reflowArtboard(idx, oldRect) {
+    if (app.documents.length === 0) return "error:No document open.";
+    var doc = app.activeDocument, root = xgRootLayer(doc, false);
+    if (!root) return "ok:0";
+    var o = String(oldRect).split(","), tag = xgTag([+o[0], +o[1], +o[2], +o[3]]);
+    var list = xgRecipesByTag(root, tag);
+    if (!list.length) return "ok:0";
+    var wasLocked = root.locked;
+    root.locked = false;
+    for (var s = 0; s < root.layers.length; s++) {
+        var items = root.layers[s].pageItems;
+        root.layers[s].locked = false;
+        for (var i = items.length - 1; i >= 0; i--) if (items[i].name === tag) items[i].remove();
+    }
+    root.locked = wasLocked;
+    var done = 0;
+    for (var k = 0; k < list.length; k++) {
+        // the note is document content: only ever resolve one of our generator names
+        var r = list[k].split(";"), p = r.slice(2).join(";");
+        if (!/^create\w+$/.test(r[1])) continue;
+        var fn; try { fn = eval(r[1]); } catch (e) { continue; }
+        if (typeof fn !== "function") continue;
+        if (String(fn(p === "" ? String(idx) : p + "|" + idx)).indexOf("ok:") === 0) done++;
+    }
+    return "ok:" + done;
+}
+
 // ─── Public generators go through the engine ─────────────────────────────────
 (function () {
     var names = ["createColumnGrid","createModularGrid","createBaselineGrid",
@@ -1635,5 +1717,6 @@ function clearAllCustomLayers() {
     // Reassign through the scope chain: $.global misses declarations when the
     // file is loaded with $.evalFile instead of as the panel's ScriptPath.
     for (var i = 0; i < names.length; i++)
-        eval(names[i] + " = xgWrap(" + names[i] + ', "' + (guideLayer[names[i]] || "Comp Guides") + '")');
+        eval(names[i] + " = xgWrap(" + names[i] + ', "' + (guideLayer[names[i]] || "Comp Guides") +
+             '", "' + names[i] + '")');
 })();

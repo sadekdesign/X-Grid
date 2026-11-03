@@ -72,6 +72,13 @@ body {
 }
 .ab-bar .ab-size { margin-top: 0; text-align: left; }
 .ab-bar select:disabled { opacity: .5; }
+.ab-grids { display: flex; flex-wrap: wrap; gap: 4px; }
+.ab-grids:empty { display: none; }
+.grid-chip {
+  background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 10px; color: #aaa;
+  font-size: 10px; padding: 2px 8px; cursor: pointer;
+}
+.grid-chip:hover { border-color: #255ab0; color: #fff; }
 .ab-bar select, .artboard-row select {
   flex: 1; background: #2e2e2e; border: 1px solid #3a3a3a;
   color: #d0d0d0; border-radius: 4px; padding: 5px 8px; font-size: 12px;
@@ -296,6 +303,10 @@ body {
     </div>
     <div class="settings-divider"></div>
     <div class="settings-row">
+      <span title="When an artboard is resized or moved, its X-Grid grids are rebuilt to fit.">Live grid (follow artboard)</span>
+      <button class="toggle-pill on" id="toggle-live"></button>
+    </div>
+    <div class="settings-row">
       <span title="Rounds every guide position to a whole pixel — for UI and screen work.">Snap to whole pixels</span>
       <button class="toggle-pill" id="toggle-pixel"></button>
     </div>
@@ -331,6 +342,7 @@ body {
     <option value="-3">Selection (inside selected objects)</option>
   </select>
   <div class="ab-size" id="ab-size"></div>
+  <div class="ab-grids" id="ab-grids"></div>
 </div>
 
 <!-- ═══ COLUMNS TAB ═══ -->
@@ -1036,7 +1048,7 @@ var ALL_IDS = ["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml",
 
 function saveSettings() {
   try {
-    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", px: pixelSnap, v: {} };
+    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", px: pixelSnap, live: liveGrid, v: {} };
     ALL_IDS.forEach(function(id) {
       var el = document.getElementById(id); if (el) s.v[id] = el.value;
     });
@@ -1051,6 +1063,7 @@ function loadSettings() {
     var s = JSON.parse(raw);
     if (s.ab) document.getElementById("ab-target").value = s.ab;
     if (s.px) setPixelToggle(true);
+    if (s.live === false) setLiveToggle(false);
     if (s.unit) {
       var sel = document.getElementById("unit-select");
       sel.value = s.unit;
@@ -1107,8 +1120,126 @@ function refreshAbInfo(force) {
     abKey = r;
     var info = null;
     if (r && r.indexOf("ok:") === 0) { try { info = JSON.parse(r.slice(3)); } catch(e) {} }
+    followArtboards(info);
     renderAbTarget(info);
+    refreshGridChips();
   });
+}
+
+// ── Live grid: rebuild a grid when its artboard is resized or moved ──────────
+var liveGrid = true;
+var lastRects = { doc: null, byName: {} };
+
+function followArtboards(info) {
+  if (!info) { lastRects = { doc: null, byName: {} }; return; }
+  var prev = lastRects.doc === info.doc ? lastRects.byName : null, now = {};
+  info.abs.forEach(function(a, i) {
+    now[a.n] = a.r;
+    // same name, new rect → moved or resized (renamed/new artboards are skipped)
+    if (liveGrid && prev && prev[a.n] && prev[a.n] !== a.r)
+      cs.evalScript(genPrefix() + 'reflowArtboard("' + i + '","' + prev[a.n] + '")', function(res) {
+        if (res !== "ok:0") refreshGridChips();
+      });
+  });
+  lastRects = { doc: info.doc, byName: now };
+}
+
+function setLiveToggle(on) {
+  liveGrid = on;
+  document.getElementById("toggle-live").className = on ? "toggle-pill on" : "toggle-pill";
+}
+document.getElementById("toggle-live").onclick = function() { setLiveToggle(!liveGrid); saveSettings(); };
+
+// ── Grids already on the target: click one to load its settings back ────────
+var GRID_LABEL = {
+  createColumnGrid: function(p) { return "Columns \xb7 " + p[0]; },
+  createModularGrid: function(p) { return "Modular \xb7 " + p[0] + "\xd7" + p[1]; },
+  createBaselineGrid: function(p) { return "Baseline \xb7 " + fmtDim(+p[1]) + " " + unitName; },
+  createSocialSafe: function(p) {
+    var o = document.querySelector('#lay-type option[value="social-' + p[0] + '"]');
+    return "Safe zones \xb7 " + (o ? o.text.replace(/ \(.*\)$/, "") : p[0]);
+  }
+};
+
+function refreshGridChips() {
+  var box = document.getElementById("ab-grids");
+  if (!abInfo || abTarget() === "-1") { box.innerHTML = ""; return; }
+  cs.evalScript('getRecipes("' + abTarget() + '")', function(r) {
+    var list = [];
+    try { list = JSON.parse(r.slice(3)); } catch(e) {}
+    box.innerHTML = "";
+    list.forEach(function(g) {
+      var p = g.p === "" ? [] : g.p.split("|");
+      var b = document.createElement("button");
+      b.className = "grid-chip";
+      b.title = "Load this grid's settings";
+      b.textContent = GRID_LABEL[g.fn] ? GRID_LABEL[g.fn](p) : compLabel(g.fn, p);
+      b.onclick = function() { loadRecipe(g.fn, p); };
+      box.appendChild(b);
+    });
+  });
+}
+
+function compType(fn, p) {
+  if (fn === "createRootN") return "root" + p[0];
+  for (var k in COMP_FN) if (COMP_FN[k] === fn) return k;
+  return null;
+}
+function compLabel(fn, p) {
+  var lay = { createManuscriptGrid:"manuscript", createHierarchicalGrid:"hierarchical",
+              createCompoundGrid:"compound", createResponsiveGrid:"responsive" }[fn];
+  var sel = document.getElementById(lay ? "lay-type" : "comp-type");
+  var v = lay || compType(fn, p), o = v && sel.querySelector('option[value="' + v + '"]');
+  return o ? o.text : fn.replace(/^create/, "");
+}
+
+function setField(id, v, isLen) {
+  var el = document.getElementById(id);
+  if (!el || v === undefined) return;
+  if (!isLen) { el.value = v; return; }
+  el.dataset.pt = parseFloat(v);
+  el.value = round3(parseFloat(v) / unitMult);
+}
+function setMargins(prefix, p, from) {
+  ["mt","mr","mb","ml"].forEach(function(m, i) { setField(prefix + "-" + m, p[from + i], true); });
+}
+function showTab(name) {
+  var t = document.querySelector('.tab[data-tab="' + name + '"]');
+  if (t) t.click();
+}
+
+function loadRecipe(fn, p) {
+  if (fn === "createColumnGrid") {
+    setField("col-val", p[0]); setField("col-gutter", p[1], true); setMargins("col", p, 2); showTab("columns");
+  } else if (fn === "createModularGrid") {
+    setField("mod-cols-val", p[0]); setField("mod-rows-val", p[1]);
+    setField("mod-gapx", p[2], true); setField("mod-gapy", p[3], true); setMargins("mod", p, 4); showTab("modular");
+  } else if (fn === "createBaselineGrid") {
+    setField("base-direction", p[0]); setField("base-spacing", p[1], true); setField("base-bold-val", p[2]);
+    setMargins("base", p, 3); showTab("baseline");
+  } else if (/^create(Manuscript|Hierarchical|Compound|Responsive)Grid$|^createSocialSafe$/.test(fn)) {
+    var lt = document.getElementById("lay-type");
+    if (fn === "createSocialSafe") lt.value = "social-" + p[0];
+    else if (fn === "createManuscriptGrid") { lt.value = "manuscript"; setMargins("lay", p, 0); }
+    else if (fn === "createHierarchicalGrid") { lt.value = "hierarchical"; setField("lay-zones", p[0]); setMargins("lay", p, 1); }
+    else if (fn === "createCompoundGrid") {
+      lt.value = "compound"; setField("lay-cols1", p[0]); setField("lay-cols2", p[1]);
+      setField("lay-gutter", p[2], true); setMargins("lay", p, 3);
+    } else lt.value = "responsive";
+    updateLayUI(); showTab("layout");
+  } else {
+    var t = compType(fn, p), ct = document.getElementById("comp-type");
+    if (!t) return;
+    ct.value = t; ct.dispatchEvent(new Event("change"));
+    if (t === "isometric") { setField("comp-spacing", p[0]); document.getElementById("comp-iso-h").checked = p[1] === "1"; }
+    else if (countTypes[t]) setField("comp-count", p[0]);
+    else if (/^root[345]$/.test(t)) setMargins("comp", p, 1);
+    else if (!noMarginTypes[t]) setMargins("comp", p, 0);
+    showTab("comp");
+  }
+  marginLinks.forEach(function(sync) { sync(); });
+  updateColPreview(); updateModPreview(); updateBasePreview();
+  saveSoon();
 }
 
 function renderAbTarget(info) {
@@ -1265,6 +1396,7 @@ function setStatus(id, result) {
     result = "error:Illustrator couldn't run this. Check that a document is open and try again.";
   el.textContent = result.replace("ok:","").replace("error:","");
   el.className   = result.indexOf("ok:") === 0 ? "status" : "status error";
+  refreshGridChips();
 }
 
 // Settings that live in the host engine are re-sent with every generate,
@@ -1606,55 +1738,58 @@ document.getElementById("comp-type").onchange = function() {
 updateCompUI();
 loadSettings();
 
+// comp type → generator (also read backwards to load a saved grid)
+var COMP_FN = {
+  thirds:      "createRuleOfThirds",
+  phi:         "createPhiGrid",
+  spiral:      "createGoldenSpiral",
+  quadrants:   "createQuadrants",
+  center:      "createCenterCross",
+  fibonacci:   "createFibonacci",
+  triangle:    "createTriangleComp",
+  harmonic:    "createHarmonicArmature",
+  baroque:     "createBaroqueDiagonal",
+  sinister:    "createSinisterDiagonal",
+  "14line":    "create14LineArmature",
+  roottwo:     "createRootTwo",
+  root3:       "createRootN",
+  root4:       "createRootN",
+  root5:       "createRootN",
+  rabatment:   "createRabatment",
+  diagonal:    "createDiagonalCross",
+  radial:      "createRadialGrid",
+  isometric:   "createIsometricGrid",
+  vandegraaf:  "createVanDeGraaf",
+  villard:     "createVillardDiagram",
+  tschichold:  "createTschichold",
+  steelyard:   "createSteelyard",
+  ocircle:     "createOCircle",
+  lshape:      "createLShape",
+  ushape:      "createUShape",
+  cshape:      "createCShape",
+  tshape:      "createTShape",
+  tunnel:      "createTunnel",
+  vesica:      "createVesicaPiscis",
+  flower:      "createFlowerOfLife",
+  metatron:    "createMetatronsCube",
+  sriyanta:    "createSriYantra",
+  "1point":    "create1PointPerspective",
+  "2point":    "create2PointPerspective",
+  "3point":    "create3PointPerspective",
+  axial:       "createAxialSystem",
+  dilatational:"createDilatational",
+  scurve:      "createSCurve",
+  zpattern:    "createZPattern",
+  fpattern:    "createFPattern",
+  safearea:    "createSafeAreas",
+  modulor:     "createModulor"
+};
+
 document.getElementById("comp-generate").onclick = function() {
   var type = document.getElementById("comp-type").value;
   var ab   = abTarget();
 
-  var fnMap = {
-    thirds:      "createRuleOfThirds",
-    phi:         "createPhiGrid",
-    spiral:      "createGoldenSpiral",
-    quadrants:   "createQuadrants",
-    center:      "createCenterCross",
-    fibonacci:   "createFibonacci",
-    triangle:    "createTriangleComp",
-    harmonic:    "createHarmonicArmature",
-    baroque:     "createBaroqueDiagonal",
-    sinister:    "createSinisterDiagonal",
-    "14line":    "create14LineArmature",
-    roottwo:     "createRootTwo",
-    root3:       "createRootN",
-    root4:       "createRootN",
-    root5:       "createRootN",
-    rabatment:   "createRabatment",
-    diagonal:    "createDiagonalCross",
-    radial:      "createRadialGrid",
-    isometric:   "createIsometricGrid",
-    vandegraaf:  "createVanDeGraaf",
-    villard:     "createVillardDiagram",
-    tschichold:  "createTschichold",
-    steelyard:   "createSteelyard",
-    ocircle:     "createOCircle",
-    lshape:      "createLShape",
-    ushape:      "createUShape",
-    cshape:      "createCShape",
-    tshape:      "createTShape",
-    tunnel:      "createTunnel",
-    vesica:      "createVesicaPiscis",
-    flower:      "createFlowerOfLife",
-    metatron:    "createMetatronsCube",
-    sriyanta:    "createSriYantra",
-    "1point":    "create1PointPerspective",
-    "2point":    "create2PointPerspective",
-    "3point":    "create3PointPerspective",
-    axial:       "createAxialSystem",
-    dilatational:"createDilatational",
-    scurve:      "createSCurve",
-    zpattern:    "createZPattern",
-    fpattern:    "createFPattern",
-    safearea:    "createSafeAreas",
-    modulor:     "createModulor"
-  };
+  var fnMap = COMP_FN;
   var fn = fnMap[type];
   if (!fn) return;
 
