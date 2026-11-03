@@ -424,6 +424,7 @@ body {
     </div>
     <div class="btn-row">
       <button class="btn-primary" id="col-generate">Generate Grid</button>
+      <button class="btn-secondary" id="col-shapes" title="Draw the grid as rectangles on an 'X-Grid Shapes' layer (for wireframes)">Shapes</button>
       <button class="btn-secondary" id="col-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="col-status"></span>
@@ -536,6 +537,7 @@ body {
     </div>
     <div class="btn-row">
       <button class="btn-primary" id="mod-generate">Generate Grid</button>
+      <button class="btn-secondary" id="mod-shapes" title="Draw the grid as rectangles on an 'X-Grid Shapes' layer (for wireframes)">Shapes</button>
       <button class="btn-secondary" id="mod-clear" title="Clear X-Grid on the selected artboard">Clear</button>
     </div>
     <span class="status" id="mod-status"></span>
@@ -1649,6 +1651,16 @@ document.getElementById("base-clear").onclick = function() {
   clearTarget("base-status");
 };
 
+// ── Grid to shapes (Columns and Modular tabs) ─────────────────────────────────
+document.getElementById("col-shapes").onclick = function() {
+  var p = [cnt("col-val"), "1", dim("col-gutter"), "0", dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"), abTarget()];
+  cs.evalScript('createGridShapes("' + p.join("|") + '")', function(r) { setStatus("col-status", r); });
+};
+document.getElementById("mod-shapes").onclick = function() {
+  var p = [cnt("mod-cols-val"), cnt("mod-rows-val"), dim("mod-gapx"), dim("mod-gapy"),
+           dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"), abTarget()];
+  cs.evalScript('createGridShapes("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); });
+};
 // Spacing = the text's leading; top margin = where its first baseline falls.
 document.getElementById("base-from-text").onclick = function() {
   cs.evalScript('baselineFromText("' + abTarget() + '")', function(r) {

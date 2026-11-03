@@ -1629,6 +1629,48 @@ function clearAllCustomLayers() {
     } catch (e) { return "error:" + e.message; }
 }
 
+// ─── Grid to shapes ──────────────────────────────────────────────────────────
+// Draws the columns (or modular cells) as real rectangles — for wireframes and
+// presentations — grouped per artboard on an "X-Grid Shapes" layer. They are
+// artwork, not guides: X-Grid never clears or rebuilds them.
+// params: "cols|rows|gapX|gapY|mTop|mRight|mBottom|mLeft|abIndex" (rows 1 = columns)
+function createGridShapes(params) {
+    if (app.documents.length === 0) return "error:No document open.";
+    try {
+        var p = params.split("|"), doc = app.activeDocument;
+        var cols = xgCount(p[0], 1, 200, "Columns"), rows = xgCount(p[1], 1, 200, "Rows");
+        var gapX = xgLen(p[2], "Column gap"), gapY = xgLen(p[3], "Row gap");
+        var m = [xgLen(p[4], "Top margin"), xgLen(p[5], "Right margin"), xgLen(p[6], "Bottom margin"), xgLen(p[7], "Left margin")];
+        var abIdx = parseInt(p[8]), abs = compArtboards(abIdx, doc), cells = [];
+
+        // measure everything first, so a bad value draws nothing
+        for (var a = 0; a < abs.length; a++) {
+            var b = getArtboard(doc, abs[a]);
+            var left = b[0] + m[3], top = b[1] - m[0], W = b[2] - m[1] - left, H = top - (b[3] + m[2]);
+            var cw = (W - (cols - 1) * gapX) / cols, rh = (H - (rows - 1) * gapY) / rows;
+            if (cw <= 0 || rh <= 0) return "error:Gap/Margin too large for artboard.";
+            cells.push({ left: left, top: top, cw: cw, rh: rh });
+        }
+
+        var prev = doc.activeLayer, layer = xgFindLayer(doc.layers, "X-Grid Shapes");
+        if (!layer) { layer = doc.layers.add(); layer.name = "X-Grid Shapes"; }
+        layer.locked = false; layer.visible = true;
+        var fill = makeColor(37, 90, 176), n = 0;
+        for (var c = 0; c < cells.length; c++) {
+            var k = cells[c], g = layer.groupItems.add();
+            g.name = (rows > 1 ? cols + "\xd7" + rows + " cells" : cols + " columns");
+            for (var r = 0; r < rows; r++) for (var i = 0; i < cols; i++) {
+                var rect = g.pathItems.rectangle(k.top - r * (k.rh + gapY), k.left + i * (k.cw + gapX), k.cw, k.rh);
+                rect.stroked = false; rect.filled = true; rect.fillColor = fill; rect.opacity = 20;
+                rect.name = rows > 1 ? "Cell " + (r + 1) + "-" + (i + 1) : "Column " + (i + 1);
+                n++;
+            }
+        }
+        try { doc.activeLayer = prev; } catch (e) {}
+        return "ok:" + n + " shapes on the 'X-Grid Shapes' layer.";
+    } catch (e) { return "error:" + e.message; }
+}
+
 // ─── Baseline from selected text ─────────────────────────────────────────────
 // "ok:<leading>|<top offset>" in pt: a baseline grid with this spacing and top
 // margin runs through the first baseline of the selected text frame.
