@@ -3,32 +3,31 @@
 # Installs the latest signed release into the current user's CEP extensions
 # folder (no admin rights, no debug mode). Run it again to update.
 #
-#   curl -fsSL https://raw.githubusercontent.com/sadekdesign/X-Grid/main/install/install.sh | bash
+#   curl -fsSL https://x-output.com/lab/x-grid/install.sh | bash
 #
 # Optional: XGRID_ZXP=/path/X-Grid.zxp installs that file instead of downloading.
+#           XGRID_BASE=http://localhost:3000/lab/x-grid downloads from another host (testing).
 set -euo pipefail
 
-repo="sadekdesign/X-Grid"
+base="${XGRID_BASE:-https://x-output.com/lab/x-grid}"
+base="${base%/}"
 bundle="com.xoutput.xgrid"
 dest="$HOME/Library/Application Support/Adobe/CEP/extensions/$bundle"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 if [ -n "${XGRID_ZXP:-}" ]; then
-  zxp="$XGRID_ZXP"; version="local file"
+  zxp="$XGRID_ZXP"
 else
-  echo "Looking up the latest X-Grid release..."
-  json="$(curl -fsSL -H 'User-Agent: xgrid-installer' "https://api.github.com/repos/$repo/releases/latest")"
-  url="$(printf '%s' "$json" | grep -o '"browser_download_url": *"[^"]*\.zxp"' | head -n1 | sed 's/.*"\(https[^"]*\)"/\1/')"
-  version="$(printf '%s' "$json" | grep -o '"tag_name": *"[^"]*"' | head -n1 | sed 's/.*"\([^"]*\)"$/\1/')"
-  [ -n "$url" ] || { echo "The latest release has no .zxp file." >&2; exit 1; }
+  echo "Downloading the latest X-Grid..."
   zxp="$tmp/X-Grid.zxp"
-  curl -fsSL "$url" -o "$zxp"
+  curl -fsSL "$base/X-Grid.zxp" -o "$zxp"
 fi
 
 # a .zxp is a signed zip: unpack it as-is so the signature stays valid
 unzip -q "$zxp" -d "$tmp/unpacked"
 [ -f "$tmp/unpacked/CSXS/manifest.xml" ] || { echo "This file is not an X-Grid extension." >&2; exit 1; }
+version="$(grep -o 'ExtensionBundleVersion="[^"]*"' "$tmp/unpacked/CSXS/manifest.xml" | head -n1 | cut -d'"' -f2)"
 
 mkdir -p "$(dirname "$dest")"
 rm -rf "$dest"

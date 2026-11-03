@@ -32,13 +32,13 @@ The same command installs and updates. No admin rights, no debug mode.
 **Windows** (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/sadekdesign/X-Grid/main/install/install.ps1 | iex
+irm https://x-output.com/lab/x-grid/install.ps1 | iex
 ```
 
 **macOS** (Terminal):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sadekdesign/X-Grid/main/install/install.sh | bash
+curl -fsSL https://x-output.com/lab/x-grid/install.sh | bash
 ```
 
 Then restart Illustrator and open **Window › Extensions › X-Grid**.
@@ -46,7 +46,7 @@ Then restart Illustrator and open **Window › Extensions › X-Grid**.
 **With Claude:** give Claude (Claude Code or the desktop app) this repository's link and say
 *"install X-Grid"* or *"update X-Grid"*. The steps it follows are in [`CLAUDE.md`](CLAUDE.md).
 
-**By hand:** download `X-Grid.zxp` from [Releases](https://github.com/sadekdesign/X-Grid/releases),
+**By hand:** download [`X-Grid.zxp`](https://x-output.com/lab/x-grid/X-Grid.zxp),
 rename it to `.zip`, unzip it, and put the folder (named `com.xoutput.xgrid`) in
 `%APPDATA%\Adobe\CEP\extensions\` (Windows) or
 `~/Library/Application Support/Adobe/CEP/extensions/` (macOS).
@@ -71,3 +71,8 @@ publish a GitHub release that the installers pick up.
 ---
 
 Made by [X-Output](https://x-output.com) · Fonts: SIL Open Font License 1.1 (see [`fonts/`](fonts/README.md))
+
+## License
+
+Code: [MIT](LICENSE). Fonts: SIL Open Font License 1.1 ([`fonts/OFL.txt`](fonts/OFL.txt)).
+The X-Grid and X-Output names and logo are not part of the license: forks need their own name and icon.

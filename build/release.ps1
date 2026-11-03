@@ -29,7 +29,3 @@ if ($LASTEXITCODE) { throw "Signing failed." }
 & $env:XGRID_SIGNCMD -verify $zxp
 if ($LASTEXITCODE) { throw "Signature check failed." }
 Write-Host "Built $zxp (v$version)"
-
-if ($Publish) {
-    gh release create "v$version" $zxp --title "X-Grid $version" --notes "Install or update: see README."
-}
