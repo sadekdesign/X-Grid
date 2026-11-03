@@ -119,12 +119,12 @@ body {
 .stepper-sm button:hover { background: #3a3a3a; color: #fff; }
 .stepper-sm input {
   flex: 1; background: none; border: none; color: #fff;
-  text-align: center; font-size: 11px; font-weight: 600; min-width: 0;
+  text-align: center; font-size: 11px; font-weight: 600; min-width: 0; width: 100%;
 }
 .stepper-sm input:focus { outline: none; }
 
 /* ── Two-col row ── */
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.two-col { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; }
 
 /* ── Gap link button ── */
 .gap-link-btn {
@@ -144,7 +144,9 @@ body {
   color: #888; cursor: pointer; padding: 3px 6px; font-size: 10px; transition: all .15s;
 }
 .link-btn.linked { border-color: #255ab0; color: #255ab0; }
-.margins-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 6px; }
+/* minmax(0,1fr): number inputs have a ~150px intrinsic width that pushed the
+   right column out of a 300px panel */
+.margins-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; }
 .margin-field label { display: block; font-size: 10px; color: #666; margin-bottom: 3px; }
 
 /* ── Artboard size ── */
@@ -346,6 +348,9 @@ body {
             <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
           </svg>
         </button>
+        <button class="icon-btn" id="col-preset-del" title="Delete this preset" style="display:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
       </div>
     </div>
 
@@ -427,6 +432,9 @@ body {
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
           </svg>
+        </button>
+        <button class="icon-btn" id="mod-preset-del" title="Delete this preset" style="display:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
       </div>
     </div>
@@ -538,6 +546,9 @@ body {
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
             <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
           </svg>
+        </button>
+        <button class="icon-btn" id="base-preset-del" title="Delete this preset" style="display:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         </button>
       </div>
     </div>
@@ -1242,77 +1253,102 @@ document.getElementById("plugin-power").onclick = function() {
   targets.forEach(function(el) { el.classList.toggle("panel-disabled", on); });
 };
 
-// ── Preset Helpers ────────────────────────────────────────────────────────────
-function loadCustomPresets(sel, key) {
+// ── Presets ───────────────────────────────────────────────────────────────────
+// A preset is a set of field values keyed by short names (cols, gutter, mt…).
+// Built-in options carry them as data-<key> in pt; saved ones also carry
+// data-u (the unit they were saved in), so lengths convert on apply. Only the
+// keys a preset has are applied — it never zeroes fields it doesn't mention.
+var PRESETS = {
+  col:  { f: { cols:"col-val", gutter:"col-gutter", mt:"col-mt", mr:"col-mr", mb:"col-mb", ml:"col-ml" },
+          redraw: function() { updateColPreview(); },
+          name: function(v) { return v.cols + " col \xb7 " + v.gutter + " " + unitName + " gutter"; } },
+  mod:  { f: { cols:"mod-cols-val", rows:"mod-rows-val", gapx:"mod-gapx", gapy:"mod-gapy",
+               mt:"mod-mt", mr:"mod-mr", mb:"mod-mb", ml:"mod-ml" },
+          redraw: function() { updateModPreview(); },
+          name: function(v) { return v.cols + " \xd7 " + v.rows + " \xb7 " + v.gapx + " " + unitName + " gap"; } },
+  base: { f: { spacing:"base-spacing", bold:"base-bold-val", mt:"base-mt", mr:"base-mr", mb:"base-mb", ml:"base-ml" },
+          redraw: function() { updateBasePreview(); },
+          name: function(v) { return v.spacing + " " + unitName + " baseline"; } }
+};
+
+function presetStore(p) { return "gg_presets_" + p; }
+
+function readCustomPresets(p) {
   try {
-    var saved = JSON.parse(localStorage.getItem(key) || "[]");
-    saved.forEach(function(p) {
-      var opt = document.createElement("option");
-      opt.value = p.v; opt.text = p.t;
-      Object.keys(p.d).forEach(function(k) { opt.setAttribute("data-"+k, p.d[k]); });
-      sel.add(opt);
+    var list = JSON.parse(localStorage.getItem(presetStore(p)) || "[]");
+    // v1.0 saved values under field ids ("col-val") — map them to keys
+    var byId = {}; for (var k in PRESETS[p].f) byId[PRESETS[p].f[k]] = k;
+    list.forEach(function(it) {
+      var d = {};
+      for (var key in it.d) d[byId[key] || key] = it.d[key];
+      it.d = d;
     });
-  } catch(e) {}
-}
-function saveCustomPreset(sel, key, ids) {
-  var d = {}; ids.forEach(function(id) { d[id] = document.getElementById(id).value; });
-  var v = "c"+Date.now(), t = "Custom " + sel.options.length;
-  var opt = document.createElement("option"); opt.value = v; opt.text = t;
-  Object.keys(d).forEach(function(k) { opt.setAttribute("data-"+k, d[k]); }); sel.add(opt);
-  try {
-    var saved = JSON.parse(localStorage.getItem(key)||"[]");
-    saved.push({v:v,t:t,d:d}); localStorage.setItem(key, JSON.stringify(saved));
-  } catch(e) {}
+    return list;
+  } catch(e) { return []; }
 }
 
-// ── Columns Preset Dropdown ───────────────────────────────────────────────────
-var colPresetSel = document.getElementById("col-preset-sel");
-loadCustomPresets(colPresetSel, "gg_presets_col");
-colPresetSel.onchange = function() {
-  var o = this.options[this.selectedIndex]; if (!o.value) return;
-  var dc=o.getAttribute("data-cols"), dg=o.getAttribute("data-gutter");
-  var ml=o.getAttribute("data-ml")||"0", mr=o.getAttribute("data-mr")||"0";
-  if(dc) document.getElementById("col-val").value=dc;
-  if(dg) document.getElementById("col-gutter").value=dg;
-  ["col-mt","col-mb"].forEach(function(id){document.getElementById(id).value="0";});
-  document.getElementById("col-ml").value=ml; document.getElementById("col-mr").value=mr;
-  updateColPreview();
-};
-document.getElementById("col-preset-save").onclick = function() {
-  saveCustomPreset(colPresetSel,"gg_presets_col",["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml"]);
-};
+function addPresetOption(sel, it) {
+  var opt = document.createElement("option");
+  opt.value = it.v; opt.text = it.t;
+  opt.setAttribute("data-u", it.u || 1);
+  for (var k in it.d) opt.setAttribute("data-" + k, it.d[k]);
+  sel.add(opt);
+  return opt;
+}
 
-// ── Modular Preset Dropdown ───────────────────────────────────────────────────
-var modPresetSel = document.getElementById("mod-preset-sel");
-loadCustomPresets(modPresetSel, "gg_presets_mod");
-modPresetSel.onchange = function() {
-  var o = this.options[this.selectedIndex]; if (!o.value) return;
-  var dc=o.getAttribute("data-cols"), dr=o.getAttribute("data-rows");
-  var dgx=o.getAttribute("data-gapx"), dgy=o.getAttribute("data-gapy");
-  if(dc) document.getElementById("mod-cols-val").value=dc;
-  if(dr) document.getElementById("mod-rows-val").value=dr;
-  if(dgx){document.getElementById("mod-gapx").value=dgx;}
-  if(dgy){document.getElementById("mod-gapy").value=dgy;}
-  updateModPreview();
-};
-document.getElementById("mod-preset-save").onclick = function() {
-  saveCustomPreset(modPresetSel,"gg_presets_mod",["mod-cols-val","mod-rows-val","mod-gapx","mod-gapy","mod-mt","mod-mr","mod-mb","mod-ml"]);
-};
+function applyPreset(p, opt) {
+  var f = PRESETS[p].f, u = parseFloat(opt.getAttribute("data-u") || "1");
+  for (var k in f) {
+    var a = opt.getAttribute("data-" + k), el = document.getElementById(f[k]);
+    if (a === null || !el) continue;
+    if (DIM_IDS.indexOf(f[k]) < 0) { el.value = a; continue; }
+    el.dataset.pt = parseFloat(a) * u;
+    el.value = round3(el.dataset.pt / unitMult);
+  }
+  marginLinks.forEach(function(sync) { sync(); });
+  PRESETS[p].redraw();
+  saveSoon();
+}
 
-// ── Baseline Preset Dropdown ──────────────────────────────────────────────────
-var basePresetSel = document.getElementById("base-preset-sel");
-loadCustomPresets(basePresetSel, "gg_presets_base");
-basePresetSel.onchange = function() {
-  var o = this.options[this.selectedIndex]; if (!o.value) return;
-  var ds=o.getAttribute("data-spacing");
-  if(ds) document.getElementById("base-spacing").value=ds;
-  updateBasePreview();
-};
-document.getElementById("base-preset-save").onclick = function() {
-  var sp=document.getElementById("base-spacing").value||"8";
-  saveCustomPreset(basePresetSel,"gg_presets_base",["base-spacing","base-bold-val","base-mt","base-mr","base-mb","base-ml"]);
-};
+Object.keys(PRESETS).forEach(function(p) {
+  var sel = document.getElementById(p + "-preset-sel");
+  var del = document.getElementById(p + "-preset-del");
+  readCustomPresets(p).forEach(function(it) { addPresetOption(sel, it); });
 
+  function syncDel() { del.style.display = sel.value.charAt(0) === "c" ? "" : "none"; }
+
+  sel.onchange = function() {
+    var o = this.options[this.selectedIndex];
+    syncDel();
+    if (o.value) applyPreset(p, o);
+  };
+
+  document.getElementById(p + "-preset-save").onclick = function() {
+    // lengths are stored in pt (the exact data-pt when the field has one)
+    var f = PRESETS[p].f, d = {}, shown = {};
+    for (var k in f) {
+      var el = document.getElementById(f[k]), n = parseFloat(el.value);
+      shown[k] = el.value;
+      if (DIM_IDS.indexOf(f[k]) < 0 || isNaN(n)) { d[k] = el.value; continue; }
+      var pt = parseFloat(el.dataset.pt);
+      d[k] = round3(!isNaN(pt) && round3(pt / unitMult) === round3(n) ? pt : n * unitMult);
+    }
+    var it = { v: "c" + Date.now(), t: PRESETS[p].name(shown), u: 1, d: d };
+    var list = readCustomPresets(p); list.push(it);
+    try { localStorage.setItem(presetStore(p), JSON.stringify(list)); } catch(e) {}
+    sel.value = addPresetOption(sel, it).value;
+    syncDel();
+  };
+
+  del.onclick = function() {
+    var v = sel.value;
+    var list = readCustomPresets(p).filter(function(it) { return it.v !== v; });
+    try { localStorage.setItem(presetStore(p), JSON.stringify(list)); } catch(e) {}
+    sel.remove(sel.selectedIndex);
+    sel.value = "";
+    syncDel();
+  };
+});
 // ── Modular Live Preview ──────────────────────────────────────────────────────
 var modPreviewOn = true;
 function updateModPreview() {

@@ -60,6 +60,25 @@ var XG_DEPTH      = 0;      // createQuadrants calls another generator
 
 function xgRound(v) { return Math.round(v * 100) / 100; }
 
+// Input checks: a bad value stops the generator with a message (the engine
+// then leaves the document untouched) instead of silently becoming a default.
+function xgCount(v, min, max, label) {
+    var n = Number(v);
+    if (String(v) === "" || isNaN(n) || n !== Math.floor(n) || n < min || n > max)
+        throw new Error(label + " must be a whole number from " + min + " to " + max + ".");
+    return n;
+}
+function xgLen(v, label, positive) {
+    if (String(v) === "" || v === undefined) {
+        if (positive) throw new Error(label + " must be greater than 0.");
+        return 0;
+    }
+    var n = Number(v);
+    if (isNaN(n)) throw new Error(label + " must be a number.");
+    if (n < 0) throw new Error(label + " can't be negative.");
+    if (positive && n <= 0) throw new Error(label + " must be greater than 0.");
+    return n;
+}
 // index: an artboard index, or -2 = the active artboard. Generators expand
 // -1 (all artboards) themselves; here it also means the active one.
 function getArtboard(doc, index) {
@@ -191,12 +210,12 @@ function createColumnGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
 
     var p       = params.split("|");
-    var cols    = parseInt(p[0])    || 12;
-    var gutter  = parseFloat(p[1]) || 0;
-    var mTop    = parseFloat(p[2]) || 0;
-    var mRight  = parseFloat(p[3]) || 0;
-    var mBottom = parseFloat(p[4]) || 0;
-    var mLeft   = parseFloat(p[5]) || 0;
+    var cols    = xgCount(p[0], 1, 200, "Columns");
+    var gutter  = xgLen(p[1], "Gutter");
+    var mTop    = xgLen(p[2], "Top margin");
+    var mRight  = xgLen(p[3], "Right margin");
+    var mBottom = xgLen(p[4], "Bottom margin");
+    var mLeft   = xgLen(p[5], "Left margin");
     var abIdx   = parseInt(p[6]);
 
     var doc = app.activeDocument;
@@ -250,14 +269,14 @@ function createModularGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
 
     var p    = params.split("|");
-    var cols = parseInt(p[0])    || 6;
-    var rows = parseInt(p[1])    || 4;
-    var gapX = parseFloat(p[2]) || 0;
-    var gapY = parseFloat(p[3]) || 0;
-    var mTop = parseFloat(p[4]) || 0;
-    var mRight  = parseFloat(p[5]) || 0;
-    var mBottom = parseFloat(p[6]) || 0;
-    var mLeft   = parseFloat(p[7]) || 0;
+    var cols = xgCount(p[0], 1, 200, "Columns");
+    var rows = xgCount(p[1], 1, 200, "Rows");
+    var gapX = xgLen(p[2], "Column gap");
+    var gapY = xgLen(p[3], "Row gap");
+    var mTop = xgLen(p[4], "Top margin");
+    var mRight  = xgLen(p[5], "Right margin");
+    var mBottom = xgLen(p[6], "Bottom margin");
+    var mLeft   = xgLen(p[7], "Left margin");
     var abIdx   = parseInt(p[8]);
 
     var doc = app.activeDocument;
@@ -313,12 +332,12 @@ function createBaselineGrid(params) {
 
     var p         = params.split("|");
     var direction = p[0];
-    var spacing   = parseFloat(p[1]) || 8;
-    var boldEvery = parseInt(p[2])   || 0;
-    var mTop      = parseFloat(p[3]) || 0;
-    var mRight    = parseFloat(p[4]) || 0;
-    var mBottom   = parseFloat(p[5]) || 0;
-    var mLeft     = parseFloat(p[6]) || 0;
+    var spacing   = xgLen(p[1], "Spacing", true);
+    var boldEvery = xgCount(p[2] === "" ? "0" : p[2], 0, 1000, "Bold every");
+    var mTop      = xgLen(p[3], "Top margin");
+    var mRight    = xgLen(p[4], "Right margin");
+    var mBottom   = xgLen(p[5], "Bottom margin");
+    var mLeft     = xgLen(p[6], "Left margin");
     var abIdx     = parseInt(p[7]);
 
     var doc = app.activeDocument;
@@ -418,10 +437,10 @@ function compArtboards(abIdx, doc) {
 function compMargins(params) {
     var p = params.split("|");
     return {
-        mTop:    parseFloat(p[0]) || 0,
-        mRight:  parseFloat(p[1]) || 0,
-        mBottom: parseFloat(p[2]) || 0,
-        mLeft:   parseFloat(p[3]) || 0,
+        mTop:    xgLen(p[0], "Top margin"),
+        mRight:  xgLen(p[1], "Right margin"),
+        mBottom: xgLen(p[2], "Bottom margin"),
+        mLeft:   xgLen(p[3], "Left margin"),
         abIdx:   parseInt(p[4])
     };
 }
