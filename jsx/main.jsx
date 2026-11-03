@@ -30,47 +30,150 @@ function getDocState() {
 
 function getArtboardSize(idx) {
     if (app.documents.length === 0) return "error:No document open.";
-    var doc = app.activeDocument;
-    var ab  = (parseInt(idx) === -1)
-        ? doc.artboards[doc.artboards.getActiveArtboardIndex()]
-        : doc.artboards[parseInt(idx)];
-    var r = ab.artboardRect;
+    try {
+        var r = getArtboard(app.activeDocument, parseInt(idx));
+    } catch (e) { return "error:" + e.message; }
     var W = Math.round((r[2] - r[0]) * 100) / 100;
     var H = Math.round((r[1] - r[3]) * 100) / 100;
     return "ok:" + W + "|" + H;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Engine ─────────────────────────────────────────────────────────────────
+// Generators never write to the document. addVGuide / addHGuide / draw* only
+// queue ops; xgCommit() then writes them in one pass into sublayers of the
+// "X-Grid" layer, replacing what X-Grid drew earlier on the same artboards.
+// Only X-Grid's own layer is ever scanned (scanning doc.pathItems froze
+// Illustrator on large documents), the user's own guides are never touched,
+// and a generator that returns an error leaves the document unchanged.
 
-function clearGuides(doc) {
-    for (var i = doc.pathItems.length - 1; i >= 0; i--) {
-        try {
-            if (doc.pathItems[i].guides) { doc.pathItems[i].remove(); }
-        } catch (e) {}
+var XG_LAYER      = "X-Grid";
+var XG_GUIDES     = "Guides";
+var XG_MAX_GUIDES = 5000;
+var XG            = null;   // queue of the call in progress
+var XG_DEPTH      = 0;      // createQuadrants calls another generator
+
+function xgRound(v) { return Math.round(v * 100) / 100; }
+
+function getArtboard(doc, index) {
+    var i = (index === -1) ? doc.artboards.getActiveArtboardIndex() : index;
+    if (isNaN(i) || i < 0 || i >= doc.artboards.length)
+        throw new Error("Artboard not found. Refresh the artboard list.");
+    var rect = doc.artboards[i].artboardRect; // [left, top, right, bottom]
+    if (XG) { XG.rects[i] = rect; XG.cur = i; }
+    return rect;
+}
+
+// Items are named after the rect of the artboard they were drawn for, so a
+// regenerate finds them even when they reach past the artboard edge.
+function xgTag(rect) {
+    return XG_LAYER + " " + xgRound(rect[0]) + "," + xgRound(rect[1]) + "," + xgRound(rect[2]) + "," + xgRound(rect[3]);
+}
+
+function xgQueueGuide(x1, y1, x2, y2) {
+    var key = xgRound(x1) + "," + xgRound(y1) + "," + xgRound(x2) + "," + xgRound(y2);
+    if (XG.keys[key]) return; // same guide twice (zero margin / zero gutter)
+    XG.keys[key] = true;
+    XG.guides++;
+    XG.ops.push({ layer: XG_GUIDES, ab: XG.cur, guide: true, pts: [[x1, y1], [x2, y2]] });
+}
+
+function addVGuide(doc, x, top, bottom) { xgQueueGuide(x, top, x, bottom); }
+function addHGuide(doc, y, left, right) { xgQueueGuide(left, y, right, y); }
+
+function xgFindLayer(layers, name) {
+    for (var i = 0; i < layers.length; i++) if (layers[i].name === name) return layers[i];
+    return null;
+}
+
+function xgRootLayer(doc, create) {
+    var root = xgFindLayer(doc.layers, XG_LAYER);
+    if (!root && create) {
+        var prev = doc.activeLayer;
+        root = doc.layers.add();
+        root.name = XG_LAYER;
+        try { doc.activeLayer = prev; } catch (e) {}
+    }
+    return root;
+}
+
+function xgSublayer(root, name, create) {
+    var sub = xgFindLayer(root.layers, name);
+    if (!sub && create) { sub = root.layers.add(); sub.name = name; }
+    if (sub) { sub.locked = false; sub.visible = true; }
+    return sub;
+}
+
+// Belongs to one of the artboards: tagged for it, or (artboard moved or
+// resized since) its centre lies on it.
+function xgOwned(item, rects) {
+    var g  = item.geometricBounds;
+    var cx = (g[0] + g[2]) / 2, cy = (g[1] + g[3]) / 2;
+    for (var k in rects) {
+        var r = rects[k];
+        if (item.name === xgTag(r)) return true;
+        if (cx >= r[0] && cx <= r[2] && cy <= r[1] && cy >= r[3]) return true;
+    }
+    return false;
+}
+
+function xgClearLayer(layer, rects) {
+    for (var i = layer.pageItems.length - 1; i >= 0; i--) {
+        var it = layer.pageItems[i];
+        try { if (!rects || xgOwned(it, rects)) it.remove(); } catch (e) {}
     }
 }
 
-function addVGuide(doc, x, top, bottom) {
-    var line = doc.pathItems.add();
-    line.setEntirePath([[x, top], [x, bottom]]);
-    line.guides  = true;
-    line.stroked = false;
-    line.filled  = false;
+function xgStyle(item, op) {
+    item.filled = false;
+    if (op.guide) { item.stroked = false; item.guides = true; return; }
+    item.stroked = true;
+    item.strokeWidth = op.w;
+    item.strokeColor = makeColor(op.rgb[0], op.rgb[1], op.rgb[2]);
 }
 
-function addHGuide(doc, y, left, right) {
-    var line = doc.pathItems.add();
-    line.setEntirePath([[left, y], [right, y]]);
-    line.guides  = true;
-    line.stroked = false;
-    line.filled  = false;
+function xgCommit(msg) {
+    if (XG.guides > XG_MAX_GUIDES)
+        return "error:Too many guides (" + XG.guides + "). Increase the spacing or pick fewer artboards.";
+    var doc  = app.activeDocument;
+    var prev = doc.activeLayer;
+    var root = xgRootLayer(doc, true);
+    var wasLocked = root.locked;
+    root.locked = false; root.visible = true;
+
+    var subs = {};
+    for (var i = 0; i < XG.ops.length; i++) {
+        var name = XG.ops[i].layer;
+        if (!subs[name]) { subs[name] = xgSublayer(root, name, true); xgClearLayer(subs[name], XG.rects); }
+    }
+    for (var j = 0; j < XG.ops.length; j++) {
+        var op = XG.ops[j], it;
+        if (op.ellipse) it = subs[op.layer].pathItems.ellipse(op.e[0], op.e[1], op.e[2], op.e[3]);
+        else { it = subs[op.layer].pathItems.add(); it.setEntirePath(op.pts); it.closed = !!op.closed; }
+        xgStyle(it, op);
+        it.name = xgTag(XG.rects[op.ab]);
+    }
+    root.locked = wasLocked;
+    try { doc.activeLayer = prev; } catch (e) {}
+    return msg;
 }
 
-function getArtboard(doc, index) {
-    var ab = (index === -1)
-        ? doc.artboards[doc.artboards.getActiveArtboardIndex()]
-        : doc.artboards[index];
-    return ab.artboardRect; // [left, top, right, bottom]
+// Wraps a generator: queue → commit on "ok:", discard on error, never throw.
+function xgWrap(fn) {
+    return function (params) {
+        if (app.documents.length === 0) return "error:No document open.";
+        if (XG_DEPTH > 0) return fn(params);
+        XG_DEPTH++;
+        XG = { ops: [], rects: {}, keys: {}, guides: 0 };
+        try {
+            var r = fn(params);
+            if (typeof r === "string" && r.indexOf("ok:") === 0 && XG.ops.length) r = xgCommit(r);
+            return r;
+        } catch (e) {
+            return "error:" + e.message;
+        } finally {
+            XG = null; XG_DEPTH--;
+        }
+    };
 }
 
 // ─── Column Grid ─────────────────────────────────────────────────────────────
@@ -94,7 +197,6 @@ function createColumnGrid(params) {
         ? (function() { var arr = []; for (var i = 0; i < doc.artboards.length; i++) arr.push(i); return arr; })()
         : [abIdx];
 
-    clearGuides(doc);
 
     for (var a = 0; a < artboards.length; a++) {
         var b      = getArtboard(doc, artboards[a]);
@@ -156,7 +258,6 @@ function createModularGrid(params) {
         ? (function() { var arr = []; for (var i = 0; i < doc.artboards.length; i++) arr.push(i); return arr; })()
         : [abIdx];
 
-    clearGuides(doc);
 
     for (var a = 0; a < artboards.length; a++) {
         var b      = getArtboard(doc, artboards[a]);
@@ -218,7 +319,6 @@ function createBaselineGrid(params) {
         ? (function() { var arr = []; for (var i = 0; i < doc.artboards.length; i++) arr.push(i); return arr; })()
         : [abIdx];
 
-    clearGuides(doc);
 
     for (var a = 0; a < artboards.length; a++) {
         var b      = getArtboard(doc, artboards[a]);
@@ -277,9 +377,7 @@ function getArtboardNames() {
 // ─── Clear All Guides ────────────────────────────────────────────────────────
 
 function clearAllGuides() {
-    if (app.documents.length === 0) return "error:No document open.";
-    clearGuides(app.activeDocument);
-    return "ok:Guides cleared.";
+    return clearPathLayer(XG_GUIDES);
 }
 
 // ─── Comp: helpers ───────────────────────────────────────────────────────────
@@ -311,7 +409,6 @@ function createRuleOfThirds(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var m   = compMargins(params);
     var doc = app.activeDocument;
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -342,7 +439,6 @@ function createPhiGrid(params) {
     var doc = app.activeDocument;
     var phi = 1.6180339887;
     var r   = 1 / (1 + phi); // ≈ 0.382
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -373,7 +469,6 @@ function createCenterCross(params) {
     var m = (params.indexOf("|") !== -1) ? compMargins(params)
           : { mTop:0, mRight:0, mBottom:0, mLeft:0, abIdx: parseInt(params) };
     var doc = app.activeDocument;
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -397,7 +492,6 @@ function createRootTwo(params) {
     var m   = compMargins(params);
     var doc = app.activeDocument;
     var r   = 1 / Math.sqrt(2); // ≈ 0.707
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -427,7 +521,6 @@ function createVanDeGraaf(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var abIdx = parseInt(params);
     var doc   = app.activeDocument;
-    clearGuides(doc);
     var abs = compArtboards(abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b = getArtboard(doc, abs[a]);
@@ -454,7 +547,6 @@ function createFibonacci(params) {
     var m      = compMargins(params);
     var doc    = app.activeDocument;
     var ratios = [1/8, 2/8, 3/8, 5/8, 6/8, 7/8];
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -483,7 +575,6 @@ function createRabatment(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var m   = compMargins(params);
     var doc = app.activeDocument;
-    clearGuides(doc);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b      = getArtboard(doc, abs[a]);
@@ -532,11 +623,7 @@ function clipDiagLine(left, top, right, bottom, m, c) {
 }
 
 function drawIsoPath(layer, x1, y1, x2, y2) {
-    var ln = layer.pathItems.add();
-    ln.setEntirePath([[x1, y1], [x2, y2]]);
-    ln.stroked = true; ln.filled = false; ln.strokeWidth = 0.5;
-    var col = new RGBColor(); col.red = 0; col.green = 170; col.blue = 230;
-    ln.strokeColor = col;
+    drawLine(layer, x1, y1, x2, y2);
 }
 
 function createIsometricGrid(params) {
@@ -548,19 +635,7 @@ function createIsometricGrid(params) {
     if (spacing < 4) return "error:Spacing too small (min 4).";
     var doc = app.activeDocument;
 
-    // Find or create Iso Grid layer
-    var isoLayer = null;
-    for (var li = 0; li < doc.layers.length; li++) {
-        if (doc.layers[li].name === "Iso Grid") { isoLayer = doc.layers[li]; break; }
-    }
-    if (!isoLayer) {
-        isoLayer = doc.layers.add();
-        isoLayer.name = "Iso Grid";
-    } else {
-        for (var pi = isoLayer.pathItems.length - 1; pi >= 0; pi--) {
-            try { isoLayer.pathItems[pi].remove(); } catch(e) {}
-        }
-    }
+    var isoLayer = getOrCreateLayer(doc, "Iso Grid");
 
     var slope = Math.tan(30 * Math.PI / 180); // ≈ 0.5774
     var artboards = (abIdx === -1)
@@ -600,41 +675,27 @@ function createIsometricGrid(params) {
 
 // ─── Shared: get/clear a named path layer ────────────────────────────────────
 
+// Returns a handle naming the X-Grid sublayer; draw* queue into it.
 function getOrCreateLayer(doc, name) {
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === name) {
-            for (var j = doc.layers[i].pathItems.length - 1; j >= 0; j--) {
-                try { doc.layers[i].pathItems[j].remove(); } catch(e) {}
-            }
-            return doc.layers[i];
-        }
-    }
-    var layer = doc.layers.add();
-    layer.name = name;
-    return layer;
+    return { xgLayer: name };
 }
 
 function clearPathLayer(name) {
     if (app.documents.length === 0) return "error:No document open.";
-    var doc = app.activeDocument;
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === name) {
-            for (var j = doc.layers[i].pathItems.length - 1; j >= 0; j--) {
-                try { doc.layers[i].pathItems[j].remove(); } catch(e) {}
-            }
-            return "ok:Cleared.";
-        }
-    }
-    return "ok:Nothing to clear.";
+    try {
+        var root = xgRootLayer(app.activeDocument, false);
+        var sub  = root && xgFindLayer(root.layers, name);
+        if (!sub) return "ok:Nothing to clear.";
+        var wasLocked = root.locked;
+        root.locked = false; sub.locked = false;
+        xgClearLayer(sub, null);
+        root.locked = wasLocked;
+        return "ok:Cleared.";
+    } catch (e) { return "error:" + e.message; }
 }
 
 function clearAllPathLayers() {
-    if (app.documents.length === 0) return "error:No document open.";
-    clearPathLayer("Iso Grid");
-    clearPathLayer("Radial Grid");
-    clearPathLayer("Diagonal");
-    clearGuides(app.activeDocument);
-    return "ok:All cleared.";
+    return clearAllCustomLayers();
 }
 
 // ─── Diagonal Cross ───────────────────────────────────────────────────────────
@@ -709,22 +770,16 @@ function makeColor(r, g, b) {
     var c = new RGBColor(); c.red = r; c.green = g; c.blue = b; return c;
 }
 function drawLine(layer, x1, y1, x2, y2, r, g, b, w) {
-    var ln = layer.pathItems.add();
-    ln.setEntirePath([[x1,y1],[x2,y2]]);
-    ln.stroked = true; ln.filled = false; ln.strokeWidth = w || 0.5;
-    ln.strokeColor = makeColor(r||0, g||170, b||230);
+    drawPoly(layer, [[x1,y1],[x2,y2]], false, r, g, b, w);
 }
 function drawEllipseItem(layer, cx, cy, rx, ry, r, g, b, w) {
-    var el = layer.pathItems.ellipse(cy+ry, cx-rx, 2*rx, 2*ry);
-    el.stroked = true; el.filled = false; el.strokeWidth = w || 0.5;
-    el.strokeColor = makeColor(r||0, g||170, b||230);
+    XG.ops.push({ layer: layer.xgLayer, ab: XG.cur, ellipse: true, e: [cy+ry, cx-rx, 2*rx, 2*ry],
+                  rgb: [r||0, g||170, b||230], w: w || 0.5 });
 }
 function drawPoly(layer, pts, closed, r, g, b, w) {
     if (pts.length < 2) return;
-    var p = layer.pathItems.add();
-    p.setEntirePath(pts); p.closed = !!closed;
-    p.stroked = true; p.filled = false; p.strokeWidth = w || 0.5;
-    p.strokeColor = makeColor(r||0, g||170, b||230);
+    XG.ops.push({ layer: layer.xgLayer, ab: XG.cur, pts: pts, closed: !!closed,
+                  rgb: [r||0, g||170, b||230], w: w || 0.5 });
 }
 
 // ─── Root-N Rectangle ─────────────────────────────────────────────────────────
@@ -735,8 +790,7 @@ function createRootN(params) {
     var p = params.split("|");
     var n = parseFloat(p[0]); var ratio = 1 / Math.sqrt(n);
     var m = compMargins(p.slice(1).join("|"));
-    var doc = app.activeDocument; clearGuides(doc);
-    var abs = compArtboards(m.abIdx, doc);
+    var doc = app.activeDocument;    var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
         var b = getArtboard(doc, abs[a]);
         var left=b[0]+m.mLeft, top=b[1]-m.mTop, right=b[2]-m.mRight, bottom=b[3]+m.mBottom;
@@ -774,7 +828,6 @@ function createGoldenSpiral(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var m = compMargins(params); var doc = app.activeDocument;
     var layer = getOrCreateLayer(doc, "Golden Spiral");
-    clearGuides(doc);
     var phi = 1.6180339887; var lnPhi = Math.log(phi);
     var abs = compArtboards(m.abIdx, doc);
     for (var a = 0; a < abs.length; a++) {
@@ -951,8 +1004,7 @@ function createVillardDiagram(params) {
 // params: "abIndex"
 function createTschichold(params) {
     if (app.documents.length === 0) return "error:No document open.";
-    var abIdx=parseInt(params), doc=app.activeDocument; clearGuides(doc);
-    var abs=compArtboards(abIdx,doc);
+    var abIdx=parseInt(params), doc=app.activeDocument;    var abs=compArtboards(abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]), W=b[2]-b[0], H=b[1]-b[3];
         addVGuide(doc,b[0]+W/9,   b[1],b[3]); addVGuide(doc,b[2]-W/4.5, b[1],b[3]);
@@ -965,8 +1017,7 @@ function createTschichold(params) {
 // params: "mTop|mRight|mBottom|mLeft|abIndex"
 function createManuscriptGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
-    var m=compMargins(params), doc=app.activeDocument; clearGuides(doc);
-    var abs=compArtboards(m.abIdx,doc);
+    var m=compMargins(params), doc=app.activeDocument;    var abs=compArtboards(m.abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]);
         var left=b[0]+m.mLeft, top=b[1]-m.mTop, right=b[2]-m.mRight, bottom=b[3]+m.mBottom;
@@ -984,8 +1035,7 @@ function createManuscriptGrid(params) {
 function createHierarchicalGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var p=params.split("|"), zones=parseInt(p[0])||3;
-    var m=compMargins(p.slice(1).join("|")), doc=app.activeDocument; clearGuides(doc);
-    var phi=1.6180339887, abs=compArtboards(m.abIdx,doc);
+    var m=compMargins(p.slice(1).join("|")), doc=app.activeDocument;    var phi=1.6180339887, abs=compArtboards(m.abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]);
         var left=b[0]+m.mLeft, top=b[1]-m.mTop, right=b[2]-m.mRight, bottom=b[3]+m.mBottom;
@@ -1007,8 +1057,7 @@ function createCompoundGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
     var p=params.split("|");
     var cols1=parseInt(p[0])||3, cols2=parseInt(p[1])||4, gutter=parseFloat(p[2])||16;
-    var m=compMargins(p.slice(3).join("|")), doc=app.activeDocument; clearGuides(doc);
-    var abs=compArtboards(m.abIdx,doc);
+    var m=compMargins(p.slice(3).join("|")), doc=app.activeDocument;    var abs=compArtboards(m.abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]);
         var left=b[0]+m.mLeft, top=b[1]-m.mTop, right=b[2]-m.mRight, bottom=b[3]+m.mBottom;
@@ -1032,8 +1081,7 @@ function createCompoundGrid(params) {
 // params: "abIndex"
 function createResponsiveGrid(params) {
     if (app.documents.length === 0) return "error:No document open.";
-    var abIdx=parseInt(params), doc=app.activeDocument; clearGuides(doc);
-    var bps=[320,480,768,1024,1280,1440], abs=compArtboards(abIdx,doc);
+    var abIdx=parseInt(params), doc=app.activeDocument;    var bps=[320,480,768,1024,1280,1440], abs=compArtboards(abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]), cx=(b[0]+b[2])/2, abW=b[2]-b[0];
         for (var i=0; i<bps.length; i++) {
@@ -1262,8 +1310,7 @@ function create3PointPerspective(params) {
 
 function createAxialSystem(params) {
     if (app.documents.length === 0) return "error:No document open.";
-    var abIdx=parseInt(params), doc=app.activeDocument; clearGuides(doc);
-    var abs=compArtboards(abIdx,doc);
+    var abIdx=parseInt(params), doc=app.activeDocument;    var abs=compArtboards(abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]);
         var left=b[0],top=b[1],right=b[2],bottom=b[3],W=right-left,H=top-bottom;
@@ -1381,8 +1428,7 @@ function createSafeAreas(params) {
 // Golden ratio cascade from all four edges: φ⁻¹, φ⁻², φ⁻³
 function createModulor(params) {
     if (app.documents.length === 0) return "error:No document open.";
-    var abIdx=parseInt(params), doc=app.activeDocument; clearGuides(doc);
-    var phi=1.6180339887, abs=compArtboards(abIdx,doc);
+    var abIdx=parseInt(params), doc=app.activeDocument;    var phi=1.6180339887, abs=compArtboards(abIdx,doc);
     for (var a=0; a<abs.length; a++) {
         var b=getArtboard(doc,abs[a]), W=b[2]-b[0], H=b[1]-b[3];
         var r1=1/phi, r2=r1/phi, r3=r2/phi;
@@ -1401,9 +1447,31 @@ function createModulor(params) {
 
 function clearAllCustomLayers() {
     if (app.documents.length === 0) return "error:No document open.";
-    var names=["Iso Grid","Radial Grid","Diagonal","Dynamic Symmetry","Golden Spiral",
-               "Composition","Sacred Geometry","Perspective","Cinematic"];
-    for (var i=0; i<names.length; i++) clearPathLayer(names[i]);
-    clearGuides(app.activeDocument);
-    return "ok:All cleared.";
+    try {
+        var root = xgRootLayer(app.activeDocument, false);
+        if (!root) return "ok:Nothing to clear.";
+        root.locked = false;
+        root.remove();
+        return "ok:All X-Grid guides and layers cleared.";
+    } catch (e) { return "error:" + e.message; }
 }
+
+// ─── Public generators go through the engine ─────────────────────────────────
+(function () {
+    var names = ["createColumnGrid","createModularGrid","createBaselineGrid",
+        "createRuleOfThirds","createPhiGrid","createCenterCross","createRootTwo",
+        "createVanDeGraaf","createFibonacci","createRabatment","createIsometricGrid",
+        "createDiagonalCross","createRadialGrid","createRootN","createQuadrants",
+        "createTriangleComp","createGoldenSpiral","createHarmonicArmature",
+        "createBaroqueDiagonal","createSinisterDiagonal","create14LineArmature",
+        "createVillardDiagram","createTschichold","createManuscriptGrid",
+        "createHierarchicalGrid","createCompoundGrid","createResponsiveGrid",
+        "createSteelyard","createOCircle","createLShape","createUShape","createCShape",
+        "createTShape","createTunnel","createVesicaPiscis","createFlowerOfLife",
+        "create1PointPerspective","create2PointPerspective","create3PointPerspective",
+        "createAxialSystem","createDilatational","createSCurve","createZPattern",
+        "createFPattern","createSafeAreas","createModulor"];
+    // Reassign through the scope chain: $.global misses declarations when the
+    // file is loaded with $.evalFile instead of as the panel's ScriptPath.
+    for (var i = 0; i < names.length; i++) eval(names[i] + " = xgWrap(" + names[i] + ")");
+})();
