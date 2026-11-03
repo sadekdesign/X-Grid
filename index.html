@@ -579,6 +579,11 @@ body {
       </select>
     </div>
 
+    <button class="btn-secondary" id="base-from-text" style="width:100%;font-size:11px;padding:6px 0"
+            title="Select a text frame: spacing becomes its leading and the grid runs through its first baseline.">
+      Match selected text
+    </button>
+
     <div class="two-col">
       <div>
         <div class="section-label">Spacing <span class="unit-tag" style="font-weight:400;color:#444;text-transform:none;letter-spacing:0">px</span></div>
@@ -1642,6 +1647,20 @@ document.getElementById("base-generate").onclick = function() {
 };
 document.getElementById("base-clear").onclick = function() {
   clearTarget("base-status");
+};
+
+// Spacing = the text's leading; top margin = where its first baseline falls.
+document.getElementById("base-from-text").onclick = function() {
+  cs.evalScript('baselineFromText("' + abTarget() + '")', function(r) {
+    if (r.indexOf("ok:") !== 0) { setStatus("base-status", r); return; }
+    var p = r.slice(3).split("|");
+    setField("base-spacing", p[0], true);
+    setField("base-mt", p[1], true);
+    document.getElementById("base-direction").value = "horizontal";
+    marginLinks.forEach(function(sync) { sync(); });
+    updateBasePreview(); saveSoon();
+    setStatus("base-status", "ok:Matched: " + round3(+p[0] / unitMult) + " " + unitName + " leading. Press Generate.");
+  });
 };
 
 // ── Comp ──────────────────────────────────────────────────────────────────────

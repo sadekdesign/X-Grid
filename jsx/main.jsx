@@ -1629,6 +1629,38 @@ function clearAllCustomLayers() {
     } catch (e) { return "error:" + e.message; }
 }
 
+// ─── Baseline from selected text ─────────────────────────────────────────────
+// "ok:<leading>|<top offset>" in pt: a baseline grid with this spacing and top
+// margin runs through the first baseline of the selected text frame.
+function baselineFromText(idx) {
+    if (app.documents.length === 0) return "error:No document open.";
+    try {
+        var doc = app.activeDocument, sel = doc.selection, tf = null;
+        if (sel && sel.typename === "TextRange") tf = sel.story.textFrames[0];
+        else if (sel && sel.length) for (var i = 0; i < sel.length && !tf; i++) if (sel[i].typename === "TextFrame") tf = sel[i];
+        if (!tf) return "error:Select a text frame first.";
+        if (tf.kind === TextType.PATHTEXT) return "error:Use point or area text, not type on a path.";
+
+        var ch = tf.textRange.characters[0], ca = ch.characterAttributes;
+        var lead = ca.autoLeading ? ca.size * ch.paragraphAttributes.autoLeadingAmount / 100 : ca.leading;
+
+        // area text has no anchor: a point-text copy of it starts on the same baseline
+        var y;
+        if (tf.kind === TextType.POINTTEXT) y = tf.anchor[1];
+        else {
+            var tmp = tf.duplicate(), tag = "xg-baseline-" + new Date().getTime(), pt = null;
+            tmp.name = tag; tmp.convertAreaObjectToPointObject();
+            var frames = tf.layer.textFrames;
+            for (var f = 0; f < frames.length; f++) if (frames[f].name === tag) { pt = frames[f]; break; }
+            if (!pt) return "error:Couldn't read the first baseline of this text.";
+            y = pt.anchor[1]; pt.remove();
+        }
+        var top = getArtboard(doc, parseInt(idx) === -1 ? -2 : parseInt(idx))[1];
+        var off = (top - y) % lead; if (off < 0) off += lead;
+        return "ok:" + Math.round(lead * 1000) / 1000 + "|" + Math.round(off * 1000) / 1000;
+    } catch (e) { return "error:" + e.message; }
+}
+
 // ─── Recipes: load a grid back, rebuild it when the artboard changes ─────────
 
 // Recipes on items carrying the given tag, deduplicated.
