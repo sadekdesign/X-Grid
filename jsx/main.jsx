@@ -54,10 +54,12 @@ var XG_DEPTH      = 0;      // createQuadrants calls another generator
 
 function xgRound(v) { return Math.round(v * 100) / 100; }
 
+// index: an artboard index, or -2 = the active artboard. Generators expand
+// -1 (all artboards) themselves; here it also means the active one.
 function getArtboard(doc, index) {
-    var i = (index === -1) ? doc.artboards.getActiveArtboardIndex() : index;
+    var i = (index === -1 || index === -2) ? doc.artboards.getActiveArtboardIndex() : index;
     if (isNaN(i) || i < 0 || i >= doc.artboards.length)
-        throw new Error("Artboard not found. Refresh the artboard list.");
+        throw new Error("That artboard no longer exists. Pick another one.");
     var rect = doc.artboards[i].artboardRect; // [left, top, right, bottom]
     if (XG) { XG.rects[i] = rect; XG.cur = i; }
     return rect;
@@ -363,6 +365,19 @@ function createBaselineGrid(params) {
 }
 
 // ─── Artboard Names ──────────────────────────────────────────────────────────
+
+// "ok:" + JSON {active, abs:[{n,w,h}]} — the panel polls this, so keep it cheap.
+function getArtboardInfo() {
+    if (app.documents.length === 0) return "error:No document open.";
+    var doc = app.activeDocument, out = [];
+    for (var i = 0; i < doc.artboards.length; i++) {
+        var ab = doc.artboards[i], r = ab.artboardRect;
+        var n = String(ab.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\x00-\x1f]/g, " ");
+        out.push('{"n":"' + n + '","w":' + xgRound(r[2] - r[0]) + ',"h":' + xgRound(r[1] - r[3]) + '}');
+    }
+    return 'ok:{"doc":"' + String(doc.name).replace(/\\/g, "\\\\").replace(/"/g, '\\"') +
+           '","active":' + doc.artboards.getActiveArtboardIndex() + ',"abs":[' + out.join(",") + ']}';
+}
 
 function getArtboardNames() {
     if (app.documents.length === 0) return "error:No document open.";

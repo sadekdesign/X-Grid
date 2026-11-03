@@ -66,15 +66,20 @@ body {
 }
 
 /* ── Artboard Row ── */
-.artboard-row { display: flex; align-items: center; gap: 6px; }
-.artboard-row select {
+.ab-bar {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 12px 6px; background: #1c1c1c; border-bottom: 1px solid #111; flex-shrink: 0;
+}
+.ab-bar .ab-size { margin-top: 0; text-align: left; }
+.ab-bar select:disabled { opacity: .5; }
+.ab-bar select, .artboard-row select {
   flex: 1; background: #2e2e2e; border: 1px solid #3a3a3a;
   color: #d0d0d0; border-radius: 4px; padding: 5px 8px; font-size: 12px;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center; cursor: pointer;
 }
-.artboard-row select:focus { outline: none; border-color: #255ab0; }
+.ab-bar select:focus, .artboard-row select:focus { outline: none; border-color: #255ab0; }
 
 /* ── Section Label ── */
 .section-label {
@@ -311,20 +316,18 @@ body {
   <div class="tab" data-tab="comp">Comp</div>
 </div>
 
+<!-- Shared artboard target (all tabs) -->
+<div class="ab-bar">
+  <select id="ab-target" title="Where the grid is drawn">
+    <option value="-2">Active artboard</option>
+    <option value="-1">All artboards</option>
+  </select>
+  <div class="ab-size" id="ab-size"></div>
+</div>
+
 <!-- ═══ COLUMNS TAB ═══ -->
 <div class="tab-panel active" id="panel-columns">
   <div class="panel-body">
-
-    <div class="artboard-row">
-      <select id="col-artboard"><option value="-1">All Artboards</option></select>
-      <button class="icon-btn" id="col-refresh" title="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-    </div>
-    <div class="ab-size" id="col-ab-size"></div>
 
     <div>
       <div class="section-label">Preset</div>
@@ -407,17 +410,6 @@ body {
 <!-- ═══ MODULAR TAB ═══ -->
 <div class="tab-panel" id="panel-modular">
   <div class="panel-body">
-
-    <div class="artboard-row">
-      <select id="mod-artboard"><option value="-1">All Artboards</option></select>
-      <button class="icon-btn" id="mod-refresh" title="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-    </div>
-    <div class="ab-size" id="mod-ab-size"></div>
 
     <div>
       <div class="section-label">Preset</div>
@@ -528,17 +520,6 @@ body {
 <div class="tab-panel" id="panel-baseline">
   <div class="panel-body">
 
-    <div class="artboard-row">
-      <select id="base-artboard"><option value="-1">All Artboards</option></select>
-      <button class="icon-btn" id="base-refresh" title="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-    </div>
-    <div class="ab-size" id="base-ab-size"></div>
-
     <div>
       <div class="section-label">Preset</div>
       <div class="preset-row">
@@ -633,17 +614,6 @@ body {
 <div class="tab-panel" id="panel-layout">
   <div class="panel-body">
 
-    <div class="artboard-row">
-      <select id="lay-artboard"><option value="-1">All Artboards</option></select>
-      <button class="icon-btn" id="lay-refresh" title="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-    </div>
-    <div class="ab-size" id="lay-ab-size"></div>
-
     <div>
       <div class="section-label">Grid Type</div>
       <select id="lay-type" class="field-select">
@@ -734,17 +704,6 @@ body {
 <!-- ═══ COMP TAB ═══ -->
 <div class="tab-panel" id="panel-comp">
   <div class="panel-body">
-
-    <div class="artboard-row">
-      <select id="comp-artboard"><option value="-1">All Artboards</option></select>
-      <button class="icon-btn" id="comp-refresh" title="Refresh">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
-          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-        </svg>
-      </button>
-    </div>
-    <div class="ab-size" id="comp-ab-size"></div>
 
     <div>
       <div class="section-label">Grid Type</div>
@@ -1020,7 +979,7 @@ var ALL_IDS = ["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml",
 
 function saveSettings() {
   try {
-    var s = { unit: document.getElementById("unit-select").value, v: {} };
+    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", v: {} };
     ALL_IDS.forEach(function(id) {
       var el = document.getElementById(id); if (el) s.v[id] = el.value;
     });
@@ -1033,6 +992,7 @@ function loadSettings() {
     var raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     var s = JSON.parse(raw);
+    if (s.ab) document.getElementById("ab-target").value = s.ab;
     if (s.unit) {
       var sel = document.getElementById("unit-select");
       sel.value = s.unit;
@@ -1054,30 +1014,95 @@ function loadSettings() {
 
 document.getElementById("unit-select").addEventListener("change", function() {
   saveSettings();
+  updateAbSize();
   updateColPreview();
   updateModPreview();
   updateBasePreview();
 });
 
-// ── Artboard Selector ─────────────────────────────────────────────────────────
-var abDims = {};
+// ── Artboard Target (shared by all tabs) ──────────────────────────────────────
+// One selector: Active (follows the artboard you're on) · All · a specific one.
+// It follows Illustrator by itself: document events + a cheap poll while the
+// panel is visible, so the list never points at an artboard that's gone.
+var abDims = {};          // dims the previews draw, per tab prefix
+var abInfo = null;        // last getArtboardInfo() result
+var abKey  = "";          // raw result, to skip re-rendering when nothing changed
+var abPick = null;        // name of a specifically chosen artboard
 
-function showAbSize(prefix, idx) {
-  cs.evalScript('getArtboardSize("' + idx + '")', function(r) {
-    var el = document.getElementById(prefix + "-ab-size");
-    if (!el || r.indexOf("ok:") !== 0) return;
-    var parts = r.replace("ok:","").split("|");
-    var rawW = parseFloat(parts[0]);
-    var rawH = parseFloat(parts[1]);
-    abDims[prefix] = { w: rawW, h: rawH };
-    var W = (rawW / unitMult).toFixed(unitMult === 1 ? 0 : 2);
-    var H = (rawH / unitMult).toFixed(unitMult === 1 ? 0 : 2);
-    el.textContent = W + " \xd7 " + H + " " + unitName;
-    if (prefix === "col") updateColPreview();
-    if (prefix === "mod") updateModPreview();
-    if (prefix === "base") updateBasePreview();
+function abTarget() { return document.getElementById("ab-target").value; }
+
+function fmtDim(v) { return (v / unitMult).toFixed(unitMult === 1 ? 0 : 2); }
+
+function refreshAbInfo(force) {
+  cs.evalScript("getArtboardInfo()", function(r) {
+    if (!force && r === abKey) return;
+    abKey = r;
+    var info = null;
+    if (r && r.indexOf("ok:") === 0) { try { info = JSON.parse(r.slice(3)); } catch(e) {} }
+    renderAbTarget(info);
   });
 }
+
+function renderAbTarget(info) {
+  var sel = document.getElementById("ab-target");
+  var mode = sel.value;
+  abInfo = info;
+  while (sel.options.length > 2) sel.remove(2);
+  if (!info || !info.abs.length) {
+    sel.disabled = true;
+    sel.options[0].text = "Active artboard";
+    sel.options[1].text = "All artboards";
+    document.getElementById("ab-size").textContent = "No document open";
+    return;
+  }
+  sel.disabled = false;
+  var act = info.abs[info.active];
+  sel.options[0].text = "Active — " + (info.active + 1) + ". " + act.n;
+  sel.options[1].text = "All artboards (" + info.abs.length + ")";
+  info.abs.forEach(function(a, i) {
+    var o = document.createElement("option");
+    o.value = i; o.text = (i + 1) + ". " + a.n; sel.add(o);
+  });
+  if (mode === "-1" || mode === "-2") sel.value = mode;
+  else {
+    // keep a specific pick by name: indexes shift when artboards are reordered
+    var idx = -1;
+    for (var i = 0; i < info.abs.length; i++) if (info.abs[i].n === abPick) { idx = i; break; }
+    if (idx === -1 && parseInt(mode) < info.abs.length && info.abs[parseInt(mode)].n === abPick) idx = parseInt(mode);
+    sel.value = idx === -1 ? "-2" : String(idx);
+  }
+  updateAbSize();
+}
+
+function updateAbSize() {
+  var el = document.getElementById("ab-size");
+  if (!abInfo) return;
+  var v = abTarget(), abs = abInfo.abs, a, txt;
+  if (v === "-1") {
+    var same = abs.every(function(x) { return x.w === abs[0].w && x.h === abs[0].h; });
+    a = same ? abs[0] : abs[abInfo.active];
+    txt = same ? fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName + " \xb7 " + abs.length + " artboards"
+               : abs.length + " artboards \xb7 mixed sizes (preview: active)";
+  } else {
+    a = abs[v === "-2" ? abInfo.active : parseInt(v)];
+    txt = fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName;
+  }
+  el.textContent = txt;
+  abDims.col = abDims.mod = abDims.base = { w: a.w, h: a.h };
+  updateColPreview(); updateModPreview(); updateBasePreview();
+}
+
+document.getElementById("ab-target").onchange = function() {
+  abPick = (this.value === "-1" || this.value === "-2") ? null : abInfo.abs[parseInt(this.value)].n;
+  updateAbSize();
+  saveSettings();
+};
+
+cs.addEventListener("documentAfterActivate",   function() { refreshAbInfo(true); });
+cs.addEventListener("documentAfterDeactivate", function() { refreshAbInfo(true); });
+window.addEventListener("focus", function() { refreshAbInfo(); });
+document.addEventListener("mouseenter", function() { refreshAbInfo(); });
+setInterval(function() { if (!document.hidden) refreshAbInfo(); }, 1500);
 
 // ── Column Live Preview ────────────────────────────────────────────────────────
 var colPreviewOn = true;
@@ -1148,27 +1173,7 @@ document.getElementById("col-preview-toggle").onclick = function() {
   document.getElementById(id).addEventListener("input", updateColPreview);
 });
 
-function refreshArtboards(selectId) {
-  var prefix = selectId.replace("-artboard","");
-  cs.evalScript("getArtboardNames()", function(result) {
-    if (!result || result.indexOf("error:") === 0) return;
-    var sel = document.getElementById(selectId);
-    while (sel.options.length > 1) sel.remove(1);
-    result.split("|").forEach(function(name, i) {
-      var opt = document.createElement("option");
-      opt.value = i; opt.text = (i+1) + ". " + name; sel.add(opt);
-    });
-    showAbSize(prefix, sel.value);
-  });
-}
-
-["col","mod","base","comp","lay"].forEach(function(p) {
-  var refreshEl = document.getElementById(p+"-refresh");
-  var artboardEl = document.getElementById(p+"-artboard");
-  if (refreshEl)  refreshEl.onclick  = function() { refreshArtboards(p+"-artboard"); };
-  if (artboardEl) artboardEl.onchange = function() { showAbSize(p, this.value); };
-  if (p !== "comp") refreshArtboards(p+"-artboard");
-});
+refreshAbInfo(true);
 updateColPreview();
 updateModPreview();
 updateBasePreview();
@@ -1349,7 +1354,7 @@ document.getElementById("base-direction").addEventListener("change",updateBasePr
 // ── Columns ───────────────────────────────────────────────────────────────────
 document.getElementById("col-generate").onclick = function() {
   var p = [cnt("col-val"), dim("col-gutter"), dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"),
-           document.getElementById("col-artboard").value];
+           abTarget()];
   document.getElementById("col-status").textContent = "Generating...";
   cs.evalScript('createColumnGrid("' + p.join("|") + '")', function(r) { setStatus("col-status", r); saveSettings(); });
 };
@@ -1361,7 +1366,7 @@ document.getElementById("col-clear").onclick = function() {
 document.getElementById("mod-generate").onclick = function() {
   var p = [cnt("mod-cols-val"), cnt("mod-rows-val"), dim("mod-gapx"), dim("mod-gapy"),
            dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"),
-           document.getElementById("mod-artboard").value];
+           abTarget()];
   document.getElementById("mod-status").textContent = "Generating...";
   cs.evalScript('createModularGrid("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); saveSettings(); });
 };
@@ -1374,7 +1379,7 @@ document.getElementById("base-generate").onclick = function() {
   var p = [document.getElementById("base-direction").value,
            dim("base-spacing"), cnt("base-bold-val"),
            dim("base-mt"), dim("base-mr"), dim("base-mb"), dim("base-ml"),
-           document.getElementById("base-artboard").value];
+           abTarget()];
   document.getElementById("base-status").textContent = "Generating...";
   cs.evalScript('createBaselineGrid("' + p.join("|") + '")', function(r) { setStatus("base-status", r); saveSettings(); });
 };
@@ -1384,7 +1389,6 @@ document.getElementById("base-clear").onclick = function() {
 
 // ── Comp ──────────────────────────────────────────────────────────────────────
 makeLinkedMargins("comp-link", ["comp-mt","comp-mr","comp-mb","comp-ml"]);
-refreshArtboards("comp-artboard");
 
 var compInfoMap = {
   thirds:      "Divides the canvas into thirds horizontally and vertically — classic composition rule.",
@@ -1479,7 +1483,7 @@ loadSettings();
 
 document.getElementById("comp-generate").onclick = function() {
   var type = document.getElementById("comp-type").value;
-  var ab   = document.getElementById("comp-artboard").value;
+  var ab   = abTarget();
 
   var fnMap = {
     thirds:      "createRuleOfThirds",
@@ -1602,7 +1606,7 @@ updateLayUI();
 
 document.getElementById("lay-generate").onclick = function() {
   var type = document.getElementById("lay-type").value;
-  var ab   = document.getElementById("lay-artboard").value;
+  var ab   = abTarget();
   var callStr;
 
   if (type === "manuscript") {
