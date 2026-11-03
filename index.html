@@ -72,6 +72,13 @@ body {
 }
 .ab-bar .ab-size { margin-top: 0; text-align: left; }
 .ab-bar select:disabled { opacity: .5; }
+/* ── Arabic / RTL ── */
+.lang-ar, .lang-ar button, .lang-ar select, .lang-ar input {
+  font-family: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, "Geeza Pro", sans-serif;
+}
+.lang-ar .section-label { letter-spacing: 0; text-transform: none; }
+.lang-ar input[type=number] { direction: ltr; }
+.lang-ar select { background-position: left 8px center; }
 .ab-grids { display: flex; flex-wrap: wrap; gap: 4px; }
 .ab-grids:empty { display: none; }
 .grid-chip {
@@ -317,6 +324,13 @@ body {
         <option value="2.8346" >mm</option>
         <option value="28.346" >cm</option>
         <option value="72"     >in</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <span>Language</span>
+      <select id="lang-select" style="background:#3a3a3a;border:1px solid #555;color:#d0d0d0;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer">
+        <option value="en">English</option>
+        <option value="ar">عربي</option>
       </select>
     </div>
     <div class="settings-divider"></div>
@@ -874,6 +888,7 @@ body {
 </div>
 
 <script src="js/libs/CSInterface.js"></script>
+<script src="js/i18n.js"></script>
 <script>
 var cs = new CSInterface();
 
@@ -938,7 +953,7 @@ function applyDocState(vis, locked) {
 }
 function onDocState(r) {
   abKey = ""; // the next poll must re-apply whatever Illustrator says now
-  if (r.indexOf("ok:") !== 0) { flashSettingsMsg(r.replace("error:", "")); return; }
+  if (r.indexOf("ok:") !== 0) { flashSettingsMsg(trMsg(r).replace("error:", "")); return; }
   var p = r.slice(3).split("|");
   applyDocState(p[0] === "1", p[1] === "1");
 }
@@ -982,13 +997,13 @@ document.getElementById("toggle-lock").onclick = function() {
 document.getElementById("btn-clear-all").onclick = function() {
   var btn = this;
   if (!btn.armed) {
-    btn.armed = true; btn.textContent = "Click again to clear all X-Grid guides";
-    btn.disarm = setTimeout(function() { btn.armed = false; btn.textContent = "Clear All"; }, 3000);
+    btn.armed = true; btn.textContent = t("Click again to clear all X-Grid guides");
+    btn.disarm = setTimeout(function() { btn.armed = false; btn.textContent = t("Clear All"); }, 3000);
     return;
   }
-  clearTimeout(btn.disarm); btn.armed = false; btn.textContent = "Clear All";
+  clearTimeout(btn.disarm); btn.armed = false; btn.textContent = t("Clear All");
   cs.evalScript("clearAllCustomLayers()", function(r) {
-    flashSettingsMsg(r.replace(/^(ok|error):/, ""));
+    flashSettingsMsg(trMsg(r).replace(/^(ok|error):/, ""));
     cs.evalScript("getDocState()", onDocState);
   });
 };
@@ -1055,7 +1070,7 @@ var ALL_IDS = ["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml",
 
 function saveSettings() {
   try {
-    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", px: pixelSnap, live: liveGrid, v: {} };
+    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", px: pixelSnap, live: liveGrid, lang: LANG, v: {} };
     ALL_IDS.forEach(function(id) {
       var el = document.getElementById(id); if (el) s.v[id] = el.value;
     });
@@ -1071,6 +1086,7 @@ function loadSettings() {
     if (s.ab) document.getElementById("ab-target").value = s.ab;
     if (s.px) setPixelToggle(true);
     if (s.live === false) setLiveToggle(false);
+    if (s.lang) setLang(s.lang);
     if (s.unit) {
       var sel = document.getElementById("unit-select");
       sel.value = s.unit;
@@ -1086,7 +1102,7 @@ function loadSettings() {
     });
     if (typeof updateCompUI === "function") updateCompUI();
     var ct = document.getElementById("comp-type");
-    if (ct) document.getElementById("comp-info").textContent = compInfoMap[ct.value] || "";
+    if (ct) document.getElementById("comp-info").textContent = infoText(compInfoMap, ct.value);
   } catch(e) {}
   marginLinks.forEach(function(sync) { sync(); });
 }
@@ -1116,6 +1132,9 @@ var abDims = {};          // dims the previews draw, per tab prefix
 var abInfo = null;        // last getArtboardInfo() result
 var abKey  = "";          // raw result, to skip re-rendering when nothing changed
 var abPick = null;        // name of a specifically chosen artboard
+
+// Left-to-right isolate for names and numbers inside Arabic text.
+function bidi(s) { return LANG === "ar" ? "\u2068" + s + "\u2069" : s; }
 
 function abTarget() { return document.getElementById("ab-target").value; }
 
@@ -1159,12 +1178,12 @@ document.getElementById("toggle-live").onclick = function() { setLiveToggle(!liv
 
 // ── Grids already on the target: click one to load its settings back ────────
 var GRID_LABEL = {
-  createColumnGrid: function(p) { return "Columns \xb7 " + p[0]; },
-  createModularGrid: function(p) { return "Modular \xb7 " + p[0] + "\xd7" + p[1]; },
-  createBaselineGrid: function(p) { return "Baseline \xb7 " + fmtDim(+p[1]) + " " + unitName; },
+  createColumnGrid: function(p) { return t("Columns") + " \xb7 " + p[0]; },
+  createModularGrid: function(p) { return t("Modular") + " \xb7 " + p[0] + "\xd7" + p[1]; },
+  createBaselineGrid: function(p) { return t("Baseline") + " \xb7 " + round3(+p[1] / unitMult) + " " + unitName; },
   createSocialSafe: function(p) {
     var o = document.querySelector('#lay-type option[value="social-' + p[0] + '"]');
-    return "Safe zones \xb7 " + (o ? o.text.replace(/ \(.*\)$/, "") : p[0]);
+    return (LANG === "ar" ? "مناطق آمنة \xb7 " : "Safe zones \xb7 ") + (o ? o.text.replace(/ \(.*\)$/, "") : p[0]);
   }
 };
 
@@ -1179,7 +1198,7 @@ function refreshGridChips() {
       var p = g.p === "" ? [] : g.p.split("|");
       var b = document.createElement("button");
       b.className = "grid-chip";
-      b.title = "Load this grid's settings";
+      b.title = t("Load this grid's settings");
       b.textContent = GRID_LABEL[g.fn] ? GRID_LABEL[g.fn](p) : compLabel(g.fn, p);
       b.onclick = function() { loadRecipe(g.fn, p); };
       box.appendChild(b);
@@ -1256,19 +1275,19 @@ function renderAbTarget(info) {
   while (sel.options.length > 3) sel.remove(3);
   if (!info || !info.abs.length) {
     sel.disabled = true;
-    sel.options[0].text = "Active artboard";
-    sel.options[1].text = "All artboards";
-    document.getElementById("ab-size").textContent = "No document open";
+    sel.options[0].text = t("Active artboard");
+    sel.options[1].text = t("All artboards");
+    document.getElementById("ab-size").textContent = t("No document open");
     return;
   }
   sel.disabled = false;
   applyDocState(info.vis === 1, info.lock === 1);
   var act = info.abs[info.active];
-  sel.options[0].text = "Active — " + (info.active + 1) + ". " + act.n;
-  sel.options[1].text = "All artboards (" + info.abs.length + ")";
+  sel.options[0].text = (LANG === "ar" ? "الحالي — " : "Active — ") + bidi((info.active + 1) + ". " + act.n);
+  sel.options[1].text = t("All artboards") + " (" + info.abs.length + ")";
   info.abs.forEach(function(a, i) {
     var o = document.createElement("option");
-    o.value = i; o.text = (i + 1) + ". " + a.n; sel.add(o);
+    o.value = i; o.text = bidi((i + 1) + ". " + a.n); sel.add(o);
   });
   if (mode === "-1" || mode === "-2" || mode === "-3") sel.value = mode;
   else {
@@ -1288,13 +1307,13 @@ function updateAbSize() {
   if (v === "-1") {
     var same = abs.every(function(x) { return x.w === abs[0].w && x.h === abs[0].h; });
     a = same ? abs[0] : abs[abInfo.active];
-    txt = same ? fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName + " \xb7 " + abs.length + " artboards"
-               : abs.length + " artboards \xb7 mixed sizes (preview: active)";
+    txt = same ? fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName + " \xb7 " + abs.length + (LANG === "ar" ? " لوح" : " artboards")
+               : abs.length + (LANG === "ar" ? " لوح \xb7 مقاسات مختلفة (المعاينة: الحالي)" : " artboards \xb7 mixed sizes (preview: active)");
   } else if (v === "-3") {
     // size of the selection; nothing selected → show the active artboard dimmed
     a = abInfo.sel ? { w: abInfo.sel[0], h: abInfo.sel[1] } : abs[abInfo.active];
-    txt = abInfo.sel ? "Selection \xb7 " + fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName
-                     : "Select objects to build the grid inside them";
+    txt = abInfo.sel ? (LANG === "ar" ? "التحديد \xb7 " : "Selection \xb7 ") + fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName
+                     : t("Select objects to build the grid inside them");
   } else {
     a = abs[v === "-2" ? abInfo.active : parseInt(v)];
     txt = fmtDim(a.w) + " \xd7 " + fmtDim(a.h) + " " + unitName;
@@ -1401,6 +1420,7 @@ function setStatus(id, result) {
   var el = document.getElementById(id);
   if (!result || result === "EvalScript error.")
     result = "error:Illustrator couldn't run this. Check that a document is open and try again.";
+  result = trMsg(result);
   el.textContent = result.replace("ok:","").replace("error:","");
   el.className   = result.indexOf("ok:") === 0 ? "status" : "status error";
   refreshGridChips();
@@ -1415,6 +1435,25 @@ function setPixelToggle(on) {
   document.getElementById("toggle-pixel").className = on ? "toggle-pill on" : "toggle-pill";
 }
 document.getElementById("toggle-pixel").onclick = function() { setPixelToggle(!pixelSnap); saveSettings(); };
+
+// ── Language ──────────────────────────────────────────────────────────────────
+function infoText(map, key) { return (LANG === "ar" && AR_INFO[key]) || (map && map[key]) || ""; }
+
+function setLang(lang) {
+  applyLang(lang);
+  document.getElementById("lang-select").value = LANG;
+  // redraw what code wrote in the old language
+  var btn = document.getElementById("btn-clear-all");
+  if (!btn.armed) btn.textContent = t("Clear All");
+  if (typeof updateCompUI === "function") {
+    updateCompUI();
+    document.getElementById("comp-info").textContent = infoText(compInfoMap, document.getElementById("comp-type").value);
+  }
+  if (typeof updateLayUI === "function") updateLayUI();
+  if (abInfo) renderAbTarget(abInfo);
+  ["col","mod","base","lay","comp"].forEach(function(p) { document.getElementById(p + "-status").textContent = ""; });
+}
+document.getElementById("lang-select").onchange = function() { setLang(this.value); saveSettings(); };
 
 // Enter in any field generates on the active tab.
 document.addEventListener("keydown", function(e) {
@@ -1653,12 +1692,12 @@ document.getElementById("base-clear").onclick = function() {
 
 // ── Grid to shapes (Columns and Modular tabs) ─────────────────────────────────
 document.getElementById("col-shapes").onclick = function() {
-  var p = [cnt("col-val"), "1", dim("col-gutter"), "0", dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"), abTarget()];
+  var p = [cnt("col-val"), "1", dim("col-gutter"), "0", dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"), abTarget(), LANG === "ar" ? "1" : "0"];
   cs.evalScript('createGridShapes("' + p.join("|") + '")', function(r) { setStatus("col-status", r); });
 };
 document.getElementById("mod-shapes").onclick = function() {
   var p = [cnt("mod-cols-val"), cnt("mod-rows-val"), dim("mod-gapx"), dim("mod-gapy"),
-           dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"), abTarget()];
+           dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"), abTarget(), LANG === "ar" ? "1" : "0"];
   cs.evalScript('createGridShapes("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); });
 };
 // Spacing = the text's leading; top margin = where its first baseline falls.
@@ -1671,7 +1710,9 @@ document.getElementById("base-from-text").onclick = function() {
     document.getElementById("base-direction").value = "horizontal";
     marginLinks.forEach(function(sync) { sync(); });
     updateBasePreview(); saveSoon();
-    setStatus("base-status", "ok:Matched: " + round3(+p[0] / unitMult) + " " + unitName + " leading. Press Generate.");
+    var lead = round3(+p[0] / unitMult) + " " + unitName;
+    setStatus("base-status", "ok:" + (LANG === "ar" ? "تمت المطابقة: تباعد أسطر " + lead + ". اضغط إنشاء الشبكة."
+                                                    : "Matched: " + lead + " leading. Press Generate."));
   });
 };
 
@@ -1757,13 +1798,13 @@ function updateCompUI() {
   document.getElementById("comp-spacing-row").style.display = spacingTypes[type]  ? ""     : "none";
   document.getElementById("comp-count-row").style.display   = countTypes[type]    ? ""     : "none";
   if (countTypes[type]) {
-    var label = countLabels[type] || "Count";
+    var label = t(countLabels[type] || "Count");
     document.querySelector("#comp-count-row .section-label").textContent = label;
   }
 }
 
 document.getElementById("comp-type").onchange = function() {
-  document.getElementById("comp-info").textContent = compInfoMap[this.value] || "";
+  document.getElementById("comp-info").textContent = infoText(compInfoMap, this.value);
   updateCompUI();
 };
 updateCompUI();
@@ -1882,7 +1923,7 @@ function updateLayUI() {
   document.getElementById("lay-margins-row").style.display  = layNoMarginTypes[type]  ? "none" : "";
   document.getElementById("lay-zones-row").style.display    = layZonesTypes[type]     ? ""     : "none";
   document.getElementById("lay-compound-row").style.display = layCompoundTypes[type]  ? ""     : "none";
-  document.getElementById("lay-info").textContent = layInfoMap[type] || "";
+  document.getElementById("lay-info").textContent = infoText(layInfoMap, type);
 }
 
 document.getElementById("lay-type").onchange = updateLayUI;

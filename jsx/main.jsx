@@ -1652,17 +1652,24 @@ function createGridShapes(params) {
             cells.push({ left: left, top: top, cw: cw, rh: rh });
         }
 
+        // p[9] "1": Arabic panel — numbered from the right, Arabic names
+        // (\u escapes: ExtendScript may not read this file as UTF-8)
+        var rtl = p[9] === "1";
+        var W_COL = rtl ? "عمود" : "Column", W_CELL = rtl ? "خلية" : "Cell";
+        var W_COLS = rtl ? " أعمدة" : " columns", W_CELLS = rtl ? " خلايا" : " cells";
+
         var prev = doc.activeLayer, layer = xgFindLayer(doc.layers, "X-Grid Shapes");
         if (!layer) { layer = doc.layers.add(); layer.name = "X-Grid Shapes"; }
         layer.locked = false; layer.visible = true;
         var fill = makeColor(37, 90, 176), n = 0;
         for (var c = 0; c < cells.length; c++) {
             var k = cells[c], g = layer.groupItems.add();
-            g.name = (rows > 1 ? cols + "\xd7" + rows + " cells" : cols + " columns");
+            g.name = rows > 1 ? cols + "\xd7" + rows + W_CELLS : cols + W_COLS;
             for (var r = 0; r < rows; r++) for (var i = 0; i < cols; i++) {
                 var rect = g.pathItems.rectangle(k.top - r * (k.rh + gapY), k.left + i * (k.cw + gapX), k.cw, k.rh);
                 rect.stroked = false; rect.filled = true; rect.fillColor = fill; rect.opacity = 20;
-                rect.name = rows > 1 ? "Cell " + (r + 1) + "-" + (i + 1) : "Column " + (i + 1);
+                var num = rtl ? cols - i : i + 1;
+                rect.name = rows > 1 ? W_CELL + " " + (r + 1) + "-" + num : W_COL + " " + num;
                 n++;
             }
         }
