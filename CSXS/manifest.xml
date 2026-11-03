@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ExtensionManifest Version="7.0"
-  ExtensionBundleId="com.ahmedsadek.gridguides"
-  ExtensionBundleVersion="1.0.0"
-  ExtensionBundleName="Grid Guides">
+  ExtensionBundleId="com.xoutput.xgrid"
+  ExtensionBundleVersion="1.1.0"
+  ExtensionBundleName="X-Grid">
 
   <ExtensionList>
-    <Extension Id="com.ahmedsadek.gridguides.panel" Version="1.0.0"/>
+    <Extension Id="com.xoutput.xgrid.panel" Version="1.1.0"/>
   </ExtensionList>
 
   <ExecutionEnvironment>
@@ -21,7 +21,7 @@
   </ExecutionEnvironment>
 
   <DispatchInfoList>
-    <Extension Id="com.ahmedsadek.gridguides.panel">
+    <Extension Id="com.xoutput.xgrid.panel">
       <DispatchInfo>
         <Resources>
           <MainPath>./index.html</MainPath>
@@ -32,7 +32,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Grid Guides</Menu>
+          <Menu>X-Grid</Menu>
           <Geometry>
             <Size>
               <Height>380</Height>
