@@ -296,6 +296,10 @@ body {
     </div>
     <div class="settings-divider"></div>
     <div class="settings-row">
+      <span title="Rounds every guide position to a whole pixel — for UI and screen work.">Snap to whole pixels</span>
+      <button class="toggle-pill" id="toggle-pixel"></button>
+    </div>
+    <div class="settings-row">
       <span>Input Unit</span>
       <select id="unit-select" style="background:#3a3a3a;border:1px solid #555;color:#d0d0d0;border-radius:3px;padding:2px 8px;font-size:11px;cursor:pointer">
         <option value="1"       selected>px / pt</option>
@@ -639,6 +643,13 @@ body {
           <option value="spacing4">4pt Grid</option>
           <option value="spacingpx">Pixel Grid</option>
           <option value="responsive">Responsive Grid</option>
+        </optgroup>
+        <optgroup label="Social Safe Zones">
+          <option value="social-igpost">Instagram Post (profile crop)</option>
+          <option value="social-igstory">Instagram Story</option>
+          <option value="social-igreel">Instagram Reel</option>
+          <option value="social-tiktok">TikTok</option>
+          <option value="social-ytthumb">YouTube Thumbnail</option>
         </optgroup>
       </select>
     </div>
@@ -1024,7 +1035,7 @@ var ALL_IDS = ["col-val","col-gutter","col-mt","col-mr","col-mb","col-ml",
 
 function saveSettings() {
   try {
-    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", v: {} };
+    var s = { unit: document.getElementById("unit-select").value, ab: abTarget() === "-1" ? "-1" : "-2", px: pixelSnap, v: {} };
     ALL_IDS.forEach(function(id) {
       var el = document.getElementById(id); if (el) s.v[id] = el.value;
     });
@@ -1038,6 +1049,7 @@ function loadSettings() {
     if (!raw) return;
     var s = JSON.parse(raw);
     if (s.ab) document.getElementById("ab-target").value = s.ab;
+    if (s.px) setPixelToggle(true);
     if (s.unit) {
       var sel = document.getElementById("unit-select");
       sel.value = s.unit;
@@ -1242,9 +1254,29 @@ function clearTarget(statusId) {
 }
 function setStatus(id, result) {
   var el = document.getElementById(id);
+  if (!result || result === "EvalScript error.")
+    result = "error:Illustrator couldn't run this. Check that a document is open and try again.";
   el.textContent = result.replace("ok:","").replace("error:","");
   el.className   = result.indexOf("ok:") === 0 ? "status" : "status error";
 }
+
+// Settings that live in the host engine are re-sent with every generate,
+// since Illustrator may have reloaded the script since the last call.
+var pixelSnap = false;
+function genPrefix() { return 'setPixelSnap("' + (pixelSnap ? "1" : "0") + '");'; }
+function setPixelToggle(on) {
+  pixelSnap = on;
+  document.getElementById("toggle-pixel").className = on ? "toggle-pill on" : "toggle-pill";
+}
+document.getElementById("toggle-pixel").onclick = function() { setPixelToggle(!pixelSnap); saveSettings(); };
+
+// Enter in any field generates on the active tab.
+document.addEventListener("keydown", function(e) {
+  if (e.key !== "Enter" || e.target.tagName === "BUTTON") return;
+  var panel = document.querySelector(".tab-panel.active");
+  var gen = panel && panel.querySelector('[id$="-generate"]');
+  if (gen) { e.preventDefault(); gen.click(); }
+});
 
 // ── Plugin Power Toggle ───────────────────────────────────────────────────────
 document.getElementById("plugin-power").onclick = function() {
@@ -1442,7 +1474,7 @@ document.getElementById("col-generate").onclick = function() {
   var p = [cnt("col-val"), dim("col-gutter"), dim("col-mt"), dim("col-mr"), dim("col-mb"), dim("col-ml"),
            abTarget()];
   document.getElementById("col-status").textContent = "Generating...";
-  cs.evalScript('createColumnGrid("' + p.join("|") + '")', function(r) { setStatus("col-status", r); saveSettings(); });
+  cs.evalScript(genPrefix() + 'createColumnGrid("' + p.join("|") + '")', function(r) { setStatus("col-status", r); saveSettings(); });
 };
 document.getElementById("col-clear").onclick = function() {
   clearTarget("col-status");
@@ -1454,7 +1486,7 @@ document.getElementById("mod-generate").onclick = function() {
            dim("mod-mt"), dim("mod-mr"), dim("mod-mb"), dim("mod-ml"),
            abTarget()];
   document.getElementById("mod-status").textContent = "Generating...";
-  cs.evalScript('createModularGrid("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); saveSettings(); });
+  cs.evalScript(genPrefix() + 'createModularGrid("' + p.join("|") + '")', function(r) { setStatus("mod-status", r); saveSettings(); });
 };
 document.getElementById("mod-clear").onclick = function() {
   clearTarget("mod-status");
@@ -1467,7 +1499,7 @@ document.getElementById("base-generate").onclick = function() {
            dim("base-mt"), dim("base-mr"), dim("base-mb"), dim("base-ml"),
            abTarget()];
   document.getElementById("base-status").textContent = "Generating...";
-  cs.evalScript('createBaselineGrid("' + p.join("|") + '")', function(r) { setStatus("base-status", r); saveSettings(); });
+  cs.evalScript(genPrefix() + 'createBaselineGrid("' + p.join("|") + '")', function(r) { setStatus("base-status", r); saveSettings(); });
 };
 document.getElementById("base-clear").onclick = function() {
   clearTarget("base-status");
@@ -1644,7 +1676,7 @@ document.getElementById("comp-generate").onclick = function() {
     callStr = fn + '("' + mStr2 + '")';
   }
   document.getElementById("comp-status").textContent = "Generating...";
-  cs.evalScript(callStr, function(r) { setStatus("comp-status", r); saveSettings(); });
+  cs.evalScript(genPrefix() + callStr, function(r) { setStatus("comp-status", r); saveSettings(); });
 };
 
 document.getElementById("comp-clear").onclick = function() { clearTarget("comp-status"); };
@@ -1659,10 +1691,16 @@ var layInfoMap = {
   spacing8:    "8pt baseline grid — every spacing, size, and position snaps to 8pt multiples.",
   spacing4:    "4pt baseline grid — fine-grained spacing for dense UI and compact layouts.",
   spacingpx:   "1px pixel grid — exact pixel-level alignment for screen and icon work.",
-  responsive:  "Breakpoint guides at 320 / 480 / 768 / 1024 / 1280 / 1440 — responsive design reference."
+  responsive:  "Breakpoint guides at 320 / 480 / 768 / 1024 / 1280 / 1440 — responsive design reference.",
+  "social-igpost":  "Where the 3:4 profile grid crops a feed post. Keep key content between the guides.",
+  "social-igstory": "Top and bottom bands covered by the Story UI (approx.). Keep text and logos inside.",
+  "social-igreel":  "Areas covered by Reel buttons and caption (approx.), plus the 4:5 crop shown in the feed.",
+  "social-tiktok":  "Areas covered by TikTok buttons and caption (approx.). Keep text and logos inside.",
+  "social-ytthumb": "The bottom-right corner covered by the video length badge (approx.)."
 };
 
-var layNoMarginTypes = { spacing8:1, spacing4:1, spacingpx:1, responsive:1 };
+var layNoMarginTypes = { spacing8:1, spacing4:1, spacingpx:1, responsive:1,
+  "social-igpost":1, "social-igstory":1, "social-igreel":1, "social-tiktok":1, "social-ytthumb":1 };
 var layZonesTypes    = { hierarchical:1 };
 var layCompoundTypes = { compound:1 };
 
@@ -1703,11 +1741,13 @@ document.getElementById("lay-generate").onclick = function() {
     callStr = 'createBaselineGrid("both|1|0|0|0|0|0|' + ab + '")';
   } else if (type === "responsive") {
     callStr = 'createResponsiveGrid("' + ab + '")';
+  } else if (type.indexOf("social-") === 0) {
+    callStr = 'createSocialSafe("' + type.slice(7) + '|' + ab + '")';
   }
 
   if (!callStr) return;
   document.getElementById("lay-status").textContent = "Generating...";
-  cs.evalScript(callStr, function(r) { setStatus("lay-status", r); saveSettings(); });
+  cs.evalScript(genPrefix() + callStr, function(r) { setStatus("lay-status", r); saveSettings(); });
 };
 
 document.getElementById("lay-clear").onclick = function() {

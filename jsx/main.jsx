@@ -53,7 +53,6 @@ function getArtboardSize(idx) {
 // and a generator that returns an error leaves the document unchanged.
 
 var XG_LAYER      = "X-Grid";
-var XG_GUIDES     = "Guides";
 var XG_MAX_GUIDES = 5000;
 var XG            = null;   // queue of the call in progress
 var XG_DEPTH      = 0;      // createQuadrants calls another generator
@@ -96,12 +95,17 @@ function xgTag(rect) {
     return XG_LAYER + " " + xgRound(rect[0]) + "," + xgRound(rect[1]) + "," + xgRound(rect[2]) + "," + xgRound(rect[3]);
 }
 
+// Panel setting: snap guide positions to whole pixels (screen/UI work).
+var XG_PIXEL = false;
+function setPixelSnap(v) { XG_PIXEL = (v === "1"); return "ok:"; }
+
 function xgQueueGuide(x1, y1, x2, y2) {
+    if (XG_PIXEL) { x1 = Math.round(x1); y1 = Math.round(y1); x2 = Math.round(x2); y2 = Math.round(y2); }
     var key = xgRound(x1) + "," + xgRound(y1) + "," + xgRound(x2) + "," + xgRound(y2);
     if (XG.keys[key]) return; // same guide twice (zero margin / zero gutter)
     XG.keys[key] = true;
     XG.guides++;
-    XG.ops.push({ layer: XG_GUIDES, ab: XG.cur, guide: true, pts: [[x1, y1], [x2, y2]] });
+    XG.ops.push({ layer: XG.guideLayer, ab: XG.cur, guide: true, pts: [[x1, y1], [x2, y2]] });
 }
 
 function addVGuide(doc, x, top, bottom) { xgQueueGuide(x, top, x, bottom); }
@@ -181,16 +185,19 @@ function xgCommit(msg) {
     }
     root.locked = wasLocked;
     try { doc.activeLayer = prev; } catch (e) {}
+    if (XG.guides) msg += " " + XG.guides + " guide" + (XG.guides === 1 ? "" : "s") + ".";
     return msg;
 }
 
 // Wraps a generator: queue → commit on "ok:", discard on error, never throw.
-function xgWrap(fn) {
+// guides: the sublayer this generator's guides go to, so a column grid and
+// safe zones (say) can sit on the same artboard and each regenerates alone.
+function xgWrap(fn, guides) {
     return function (params) {
         if (app.documents.length === 0) return "error:No document open.";
         if (XG_DEPTH > 0) return fn(params);
         XG_DEPTH++;
-        XG = { ops: [], rects: {}, keys: {}, guides: 0 };
+        XG = { ops: [], rects: {}, keys: {}, guides: 0, guideLayer: guides };
         try {
             var r = fn(params);
             if (typeof r === "string" && r.indexOf("ok:") === 0 && XG.ops.length) r = xgCommit(r);
@@ -420,7 +427,7 @@ function getArtboardNames() {
 // ─── Clear All Guides ────────────────────────────────────────────────────────
 
 function clearAllGuides() {
-    return clearPathLayer(XG_GUIDES);
+    return clearArtboard("-1");
 }
 
 // ─── Comp: helpers ───────────────────────────────────────────────────────────
@@ -1162,6 +1169,52 @@ function createResponsiveGrid(params) {
     return "ok:Responsive Grid created.";
 }
 
+// ─── Social Safe Zones ───────────────────────────────────────────────────────
+// params: "kind|abIndex". Zones are fractions of the artboard, measured on the
+// apps' 1080-wide layouts, so they scale to any artboard size. Approximate:
+// the apps move their buttons now and then.
+var XG_SOCIAL = {
+    // [top, right, bottom, left] kept clear of app UI
+    igstory: { safe: [250/1920, 0, 250/1920, 0] },
+    igreel:  { safe: [220/1920, 120/1080, 420/1920, 0], crop: 4/5 },  // feed shows a 4:5 centre crop
+    tiktok:  { safe: [130/1920, 140/1080, 484/1920, 60/1080] },
+    igpost:  { crop: 3/4 },                                           // profile grid shows 3:4
+    ytthumb: { box: [1 - 200/1280, 1 - 60/720] }                      // timestamp, bottom-right
+};
+
+function createSocialSafe(params) {
+    var p = params.split("|"), kind = XG_SOCIAL[p[0]], doc = app.activeDocument;
+    if (!kind) return "error:Unknown format.";
+    var abs = compArtboards(parseInt(p[1]), doc);
+    for (var a = 0; a < abs.length; a++) {
+        var b = getArtboard(doc, abs[a]), W = b[2] - b[0], H = b[1] - b[3];
+        if (kind.safe) {
+            var s = kind.safe;
+            if (s[0]) addHGuide(doc, b[1] - H * s[0], b[0], b[2]);
+            if (s[2]) addHGuide(doc, b[3] + H * s[2], b[0], b[2]);
+            if (s[1]) addVGuide(doc, b[2] - W * s[1], b[1], b[3]);
+            if (s[3]) addVGuide(doc, b[0] + W * s[3], b[1], b[3]);
+        }
+        if (kind.crop) {
+            // centred crop of ratio w:h — horizontal band if the artboard is taller
+            var cropH = W / kind.crop, cropW = H * kind.crop;
+            if (cropH < H) {
+                addHGuide(doc, b[1] - (H - cropH) / 2, b[0], b[2]);
+                addHGuide(doc, b[3] + (H - cropH) / 2, b[0], b[2]);
+            } else if (cropW < W) {
+                addVGuide(doc, b[0] + (W - cropW) / 2, b[1], b[3]);
+                addVGuide(doc, b[2] - (W - cropW) / 2, b[1], b[3]);
+            }
+        }
+        if (kind.box) {
+            var x = b[0] + W * kind.box[0], y = b[3] + H * (1 - kind.box[1]);
+            addVGuide(doc, x, y, b[3]);
+            addHGuide(doc, y, x, b[2]);
+        }
+    }
+    return "ok:Safe zones created.";
+}
+
 // ─── Letter-Shape Compositions ───────────────────────────────────────────────
 
 function createSteelyard(params) {
@@ -1538,8 +1591,14 @@ function clearAllCustomLayers() {
         "createTShape","createTunnel","createVesicaPiscis","createFlowerOfLife",
         "create1PointPerspective","create2PointPerspective","create3PointPerspective",
         "createAxialSystem","createDilatational","createSCurve","createZPattern",
-        "createFPattern","createSafeAreas","createModulor"];
+        "createFPattern","createSafeAreas","createModulor","createSocialSafe"];
+    var guideLayer = {
+        createColumnGrid: "Columns", createModularGrid: "Modular", createBaselineGrid: "Baseline",
+        createManuscriptGrid: "Layout", createHierarchicalGrid: "Layout", createCompoundGrid: "Layout",
+        createResponsiveGrid: "Layout", createSocialSafe: "Safe Zones"
+    };
     // Reassign through the scope chain: $.global misses declarations when the
     // file is loaded with $.evalFile instead of as the panel's ScriptPath.
-    for (var i = 0; i < names.length; i++) eval(names[i] + " = xgWrap(" + names[i] + ")");
+    for (var i = 0; i < names.length; i++)
+        eval(names[i] + " = xgWrap(" + names[i] + ', "' + (guideLayer[names[i]] || "Comp Guides") + '")');
 })();
